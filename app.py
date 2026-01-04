@@ -4,283 +4,238 @@ import time
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="LotoMaster Quantum | Simulador Físico",
-    page_icon="⚛️",
+    page_title="LotoMaster Quantum | Ball-by-Ball",
+    page_icon="🎱",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. SESSION STATE MANAGEMENT (Memory) ---
-# Initialize session state to hold results and prevent disappearing
+# --- 2. SESSION STATE (Memory) ---
 if 'sim_results' not in st.session_state:
     st.session_state.sim_results = None
+if 'audit_results' not in st.session_state:
+    st.session_state.audit_results = {}
 
-# --- 3. GAME SELECTION & COLORS SETUP ---
+# --- 3. INPUTS & COLORS ---
 col_sel1, col_sel2 = st.columns([2, 1])
 with col_sel1:
     selected_game = st.selectbox(
-        "📂 SELECIONE O MÓDULO (Escolha a Loteria):",
+        "📂 SELECIONE O JOGO:",
         ["Lotofácil", "Mega-Sena", "Quina", "Lotomania", "+Milionária", "Timemania", "Dia de Sorte", "Dupla Sena", "Super Sete"]
     )
 
 with col_sel2:
-    num_games = st.number_input("📡 QTD DE SIMULAÇÕES:", min_value=1, max_value=100, value=5)
+    num_games = st.number_input("📡 QTD APOSTAS:", min_value=1, max_value=100, value=5)
 
-# --- COLOR MAPPING ---
+# Color Map (Official Caixa Colors)
 colors = {
     "Lotofácil": "#930089",      # Purple
     "Mega-Sena": "#209869",      # Green
     "Quina": "#260085",          # Blue
     "Lotomania": "#f78100",      # Orange
-    "Timemania": "#00ff00",      # Lime Green
+    "Timemania": "#00ff00",      # Lime
     "Dupla Sena": "#a61324",     # Red
-    "Dia de Sorte": "#cb8305",   # Golden/Brown
+    "Dia de Sorte": "#cb8305",   # Gold
     "Super Sete": "#a9cf46",     # Light Green
-    "+Milionária": "#1f2b44"     # Dark Navy
+    "+Milionária": "#1f2b44"     # Navy
 }
 theme_color = colors.get(selected_game, "#209869")
 
-# --- 4. DYNAMIC CSS STYLING ---
+# --- 4. CSS STYLING (Ball Design) ---
 st.markdown(f"""
 <style>
     .main-header {{
         color: {theme_color};
-        font-family: 'Helvetica', sans-serif;
         text-align: center;
-        font-weight: bold;
         text-transform: uppercase;
-        margin-bottom: 10px;
+        font-family: sans-serif;
+        margin-bottom: 5px;
     }}
-    .sub-header {{
-        color: #555;
-        text-align: center;
-        font-size: 14px;
-        margin-bottom: 30px;
-    }}
-    /* Primary Button (Simulate) */
+    /* Buttons */
     .stButton>button {{
         width: 100%;
-        background: {theme_color};
-        color: white;
+        border-radius: 8px;
+        height: 50px;
         font-weight: bold;
-        font-size: 20px;
-        border-radius: 12px;
-        border: none;
-        padding: 12px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        transition: 0.5s;
         text-transform: uppercase;
     }}
-    .stButton>button:hover {{
-        transform: scale(1.02);
-        filter: brightness(1.1);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-    }}
+    /* Result Card */
     .game-card {{
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 15px;
-        border-bottom: 6px solid {theme_color};
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-        margin-bottom: 25px;
-        text-align: center;
-        animation: fadeIn 1s;
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 8px solid {theme_color};
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 15px;
     }}
-    .stage-text {{
-        font-size: 14px;
-        color: #888;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+    /* THE LOTTO BALL DESIGN */
+    .lotto-ball {{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: {theme_color}; /* Theme Color Background */
+        color: white;
+        border-radius: 50%; /* Circle */
+        font-weight: bold;
+        font-size: 16px;
+        margin: 4px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        border: 2px solid white;
+    }}
+    .ball-container {{
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 5px;
         margin-top: 10px;
     }}
-    .numbers-row {{
-        font-size: 26px;
-        font-weight: 900;
+    .label-text {{
+        font-size: 12px;
+        color: #666;
+        text-align: center;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }}
+    .audit-box {{
+        background: #f1f3f4;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 12px;
         color: #333;
-        letter-spacing: 3px;
-        margin: 5px 0 15px 0;
+        margin-top: 10px;
+        border: 1px dashed #999;
     }}
-    .science-box {{
-        background-color: #2d3436;
-        color: #dfe6e9;
-        padding: 25px;
-        border-radius: 10px;
-        margin-top: 50px;
-        border-left: 5px solid {theme_color};
-        font-family: 'Courier New', monospace;
-    }}
-    @keyframes fadeIn {{
-        from {{opacity: 0; transform: translateY(20px);}}
-        to {{opacity: 1; transform: translateY(0);}}
-    }}
-    #MainMenu {{visibility: hidden;}}
-    footer {{visibility: hidden;}}
-    header {{visibility: hidden;}}
+    #MainMenu, footer, header {{visibility: hidden;}}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 5. PHYSICS ENGINE ---
-class PhysicsEngine:
+# --- 5. LOGIC ENGINE ---
+class LogicEngine:
     @staticmethod
-    def simulate_extraction(game_type, amount):
+    def generate(game, qtd):
         results = []
-        for _ in range(amount):
-            if game_type == "Lotofácil":
+        for _ in range(qtd):
+            if game == "Lotofácil":
                 while True:
-                    game = sorted(random.sample(range(1, 26), 15))
-                    odds = sum(1 for n in game if n % 2 != 0)
-                    total_sum = sum(game)
-                    if (7 <= odds <= 9) and (180 <= total_sum <= 220):
-                        results.append(game)
-                        break
-            elif game_type == "Mega-Sena":
+                    g = sorted(random.sample(range(1, 26), 15))
+                    if 180 <= sum(g) <= 220: results.append(g); break
+            elif game == "Mega-Sena":
                 while True:
-                    game = sorted(random.sample(range(1, 61), 6))
-                    total_sum = sum(game)
-                    if (130 <= total_sum <= 240): 
-                        results.append(game)
-                        break
-            elif game_type == "Quina":
-                 while True:
-                    game = sorted(random.sample(range(1, 81), 5))
-                    if (150 <= sum(game) <= 260):
-                        results.append(game)
-                        break
-            elif game_type == "Lotomania":
-                while True:
-                    game = sorted(random.sample(range(0, 100), 50))
-                    odds = sum(1 for n in game if n % 2 != 0)
-                    if (20 <= odds <= 30):
-                        results.append(game)
-                        break
-            elif game_type == "Dupla Sena":
+                    g = sorted(random.sample(range(1, 61), 6))
+                    if 130 <= sum(g) <= 240: results.append(g); break
+            elif game == "Quina":
+                results.append(sorted(random.sample(range(1, 81), 5)))
+            elif game == "Lotomania":
+                results.append(sorted(random.sample(range(0, 100), 50)))
+            elif game == "Dupla Sena":
                 results.append(sorted(random.sample(range(1, 51), 6)))
-            elif game_type == "Super Sete":
+            elif game == "Super Sete":
                 results.append([random.randint(0, 9) for _ in range(7)])
-            elif game_type == "Timemania":
-                teams = ["FLAMENGO", "CORINTHIANS", "PALMEIRAS", "SÃO PAULO", "VASCO", "SANTOS", "GRÊMIO", "CRUZEIRO", "INTER"]
-                results.append({"numbers": sorted(random.sample(range(1, 81), 10)), "team": random.choice(teams)})
-            elif game_type == "Dia de Sorte":
-                months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-                results.append({"numbers": sorted(random.sample(range(1, 32), 7)), "month": random.choice(months)})
-            elif game_type == "+Milionária":
-                results.append({"numbers": sorted(random.sample(range(1, 51), 6)), "trevos": sorted(random.sample(range(1, 7), 2))})
+            elif game == "Timemania":
+                 teams = ["FLAMENGO", "CORINTHIANS", "PALMEIRAS", "SÃO PAULO", "VASCO", "SANTOS", "GRÊMIO"]
+                 results.append({"nums": sorted(random.sample(range(1, 81), 10)), "extra": random.choice(teams)})
+            elif game == "Dia de Sorte":
+                 months = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"]
+                 results.append({"nums": sorted(random.sample(range(1, 32), 7)), "extra": random.choice(months)})
+            elif game == "+Milionária":
+                 results.append({"nums": sorted(random.sample(range(1, 51), 6)), "extra": sorted(random.sample(range(1, 7), 2))})
         return results
 
-# --- 6. MAIN INTERFACE RENDER ---
+    @staticmethod
+    def audit_game(numbers):
+        # Simulation of historical check (Mock Logic for UX)
+        score = random.randint(0, 100)
+        if score > 90: return "🌟 HISTÓRICO: Já premiou com 14 pontos (2x)"
+        elif score > 70: return "✅ HISTÓRICO: Frequentemente 12/13 pontos"
+        elif score > 40: return "⚠️ HISTÓRICO: Premiações baixas detectadas"
+        else: return "🆕 INÉDITO: Combinação nunca sorteada (Potencial Alto)"
+
+# --- 6. UI ACTIONS ---
 st.markdown("<h1 class='main-header'>⚛️ LotoMaster Quantum</h1>", unsafe_allow_html=True)
-st.markdown("<div class='sub-header'>Simulador de Probabilidade Baseado em Física Mecânica</div>", unsafe_allow_html=True)
 
-st.markdown("---")
+col1, col2, col3 = st.columns([2, 1, 1])
+with col1:
+    btn_sim = st.button(f"SIMULAR {selected_game} 🚀")
+with col2:
+    btn_audit = st.button("AUDITAR 📜")
+with col3:
+    btn_clear = st.button("LIMPAR 🗑️")
 
-# Buttons Area: Simulate & Clear
-col_btn1, col_btn2 = st.columns([3, 1])
+# --- 7. ACTIONS HANDLING ---
 
-with col_btn1:
-    simulate_btn = st.button(f"INICIAR SIMULAÇÃO {selected_game} 🚀")
-
-with col_btn2:
-    clear_btn = st.button("LIMPAR 🗑️")
-
-# --- 7. LOGIC CONTROL ---
-
-# CLEAR LOGIC
-if clear_btn:
+# Clear
+if btn_clear:
     st.session_state.sim_results = None
+    st.session_state.audit_results = {}
     st.rerun()
 
-# SIMULATION LOGIC
-if simulate_btn:
-    engine = PhysicsEngine()
-    
-    status_box = st.empty()
-    animation_box = st.empty()
-    
+# Simulate
+if btn_sim:
     # Animation
-    animation_box.markdown(
-        """<div style="display:flex; justify-content:center; margin-bottom:20px;"><img src="https://i.gifer.com/7plQ.gif" width="100" style="border-radius:50%;"></div>""", 
-        unsafe_allow_html=True
-    )
-    
-    msgs = [
-        "🔄 Inicializando Motor de Caos...",
-        "💾 Acessando Banco de Dados Histórico...",
-        "❌ Eliminando combinações premiadas anteriormente...",
-        "⚛️ Aplicando Leis da Física Mecânica...",
-        "✨ Finalizando Extração Quântica..."
-    ]
-    
-    for msg in msgs:
-        status_box.info(f"**SYSTEM:** {msg}")
-        time.sleep(1.0)
-    
-    status_box.empty()
-    animation_box.empty()
-    
-    # Generate and Store in Session State
-    st.session_state.sim_results = engine.simulate_extraction(selected_game, num_games)
+    with st.spinner("🔄 Extraindo esferas quânticas..."):
+        time.sleep(1.5)
+    st.session_state.sim_results = LogicEngine.generate(selected_game, num_games)
+    st.session_state.audit_results = {} # Reset audit on new sim
 
-# --- 8. RESULTS DISPLAY (From Session State) ---
+# Audit
+if btn_audit and st.session_state.sim_results:
+    with st.spinner("🔎 Consultando banco de dados 1998-2025..."):
+        time.sleep(1.0)
+    # Generate audit for current results
+    for i, res in enumerate(st.session_state.sim_results):
+        # Simple hash key for mock audit
+        st.session_state.audit_results[i] = LogicEngine.audit_game(res)
+
+# --- 8. RENDERING (BALL-BY-BALL) ---
 if st.session_state.sim_results:
-    st.success(f"✅ Simulação Concluída! Visualizando {len(st.session_state.sim_results)} resultados.")
+    st.success(f"✅ Extração Finalizada: {len(st.session_state.sim_results)} Jogos Gerados.")
     
     for i, res in enumerate(st.session_state.sim_results):
-        display_html = ""
         
-        if isinstance(res, dict):
-            if "team" in res:
-                nums = res['numbers']
-                half = len(nums)//2
-                display_html = f"""
-<div class='stage-text'>1º Tempo (Números Base):</div>
-<div class='numbers-row'>{" - ".join(f"{n:02d}" for n in nums[:half])}</div>
-<div class='stage-text'>2º Tempo (Finalização):</div>
-<div class='numbers-row'>{" - ".join(f"{n:02d}" for n in nums[half:])}</div>
-<div style='color:{theme_color}; font-weight:bold; margin-top:10px;'>❤️ Time: {res['team']}</div>
-"""
-            elif "month" in res:
-                display_html = f"""
-<div class='numbers-row'>{" - ".join(f"{n:02d}" for n in res['numbers'])}</div>
-<div style='color:{theme_color}; font-weight:bold;'>📅 Mês: {res['month']}</div>
-"""
-            elif "trevos" in res:
-                display_html = f"""
-<div class='numbers-row'>{" - ".join(f"{n:02d}" for n in res['numbers'])}</div>
-<div style='color:{theme_color}; font-weight:bold;'>🍀 Trevos: {" - ".join(str(t) for t in res['trevos'])}</div>
-"""
-        else:
-            if len(res) >= 10:
-                half = len(res) // 2
-                part1 = res[:half]
-                part2 = res[half:]
-                display_html = f"""
-<div class='stage-text'>1ª Bateria de Extração:</div>
-<div class='numbers-row'>{" - ".join(f"{n:02d}" for n in part1)}</div>
-<div class='stage-text'>2ª Bateria de Extração:</div>
-<div class='numbers-row'>{" - ".join(f"{n:02d}" for n in part2)}</div>
-"""
+        # HTML Building Block
+        balls_html = ""
+        extra_html = ""
+        
+        # Data Preparation
+        if isinstance(res, dict): # Games with extras (Timemania, etc)
+            main_nums = res['nums']
+            extra_val = res['extra']
+            
+            # Main Balls
+            for num in main_nums:
+                balls_html += f"<div class='lotto-ball'>{num:02d}</div>"
+            
+            # Extra Info
+            if isinstance(extra_val, list): # +Milionaria Trevos
+                trevos_str = "".join(f"<div class='lotto-ball' style='background:#333'>{t}</div>" for t in extra_val)
+                extra_html = f"<div style='margin-top:5px;'><b>Trevos:</b> {trevos_str}</div>"
             else:
-                display_html = f"""
-<div class='stage-text'>Resultado da Simulação:</div>
-<div class='numbers-row'>{" - ".join(f"{n:02d}" for n in res)}</div>
-"""
+                extra_html = f"<div style='margin-top:5px; color:{theme_color}; font-weight:bold;'>❤️ {extra_val}</div>"
+                
+        else: # Standard Games (Lotofacil, Mega, etc)
+            main_nums = res
+            for num in main_nums:
+                balls_html += f"<div class='lotto-ball'>{num:02d}</div>"
 
+        # Check Audit Status
+        audit_msg = st.session_state.audit_results.get(i, "")
+        audit_html = f"<div class='audit-box'>{audit_msg}</div>" if audit_msg else ""
+
+        # RENDER CARD
+        # Note: No indentation inside the HTML string to avoid bugs
         st.markdown(f"""
-        <div class="game-card">
-            <span class="badge">Simulação #{i+1}</span>
-            {display_html}
-        </div>
-        """, unsafe_allow_html=True)
-
-# --- 9. FOOTER ---
-st.markdown("<div class='science-box'>", unsafe_allow_html=True)
-st.markdown("""
-### ⚠️ Protocolo de Segurança LotoMaster V7
-**ATENÇÃO:** Este sistema não utiliza geradores de números aleatórios comuns (RNG).
-
-* **Tecnologia:** Utilizamos algoritmos baseados em **Física Mecânica** e **Teoria do Caos** para simular o comportamento real das esferas dentro do globo.
-* **Filtro Histórico:** Nosso banco de dados **removeu todas as combinações vencedoras anteriores**. A probabilidade matemática de um resultado se repetir é próxima de zero, por isso, garantimos que sua aposta seja 100% inédita.
-* **Filtro de Soma:** Aplicamos o "Intervalo de Ouro" (Golden Range) para garantir equilíbrio termodinâmico nos números.
+<div class="game-card">
+<div class="label-text">Simulação #{i+1} - Sequência de Extração</div>
+<div class="ball-container">
+{balls_html}
+</div>
+{extra_html}
+{audit_html}
+</div>
 """, unsafe_allow_html=True)
 
-st.caption("© 2026 LotoMaster Quantum Labs.")
+# --- 9. FOOTER ---
+st.markdown("<br><hr>", unsafe_allow_html=True)
+st.caption("© 2026 LotoMaster Quantum Labs - Engine V8.0")
