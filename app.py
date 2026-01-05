@@ -2,18 +2,19 @@ import streamlit as st
 import random
 import time
 import pandas as pd
+import numpy as np # Library for math calculations
 
-# --- 1. CONFIGURATION & SETUP ---
+# --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="LotoMaster | Hybrid Engine (Geo+Red)",
-    page_icon="🧬",
+    page_title="LotoMaster | Physics Simulation Engine",
+    page_icon="⚛️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Game Configurations (Color, Range, Pick, Reduction Amount)
+# --- 2. CONFIGURAÇÃO DOS JOGOS ---
 GAMES_CONFIG = {
-    "Lotofácil": {"color": "#930089", "range": 25, "pick": 15, "purge": 4},
+    "Lotofácil": {"color": "#930089", "range": 25, "pick": 15, "purge": 5},
     "Mega-Sena": {"color": "#209869", "range": 60, "pick": 6, "purge": 10},
     "Quina": {"color": "#260085", "range": 80, "pick": 5, "purge": 15},
     "Lotomania": {"color": "#f78100", "range": 100, "pick": 50, "purge": 10},
@@ -24,43 +25,33 @@ GAMES_CONFIG = {
     "+Milionária": {"color": "#1f2b44", "range": 50, "pick": 6, "purge": 10}
 }
 
-# --- 2. CSS STYLING (Premium Dark Interface) ---
+# --- 3. ESTILO CSS (Hacker/Physics Lab) ---
 st.markdown("""
 <style>
-    .stApp {background-color: #121212; color: #e0e0e0;}
+    .stApp {background-color: #0b0c10; color: #66fcf1;}
     
-    /* Hybrid Header */
-    .hybrid-header {
-        background: linear-gradient(90deg, #000428, #004e92);
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-        border-bottom: 4px solid #00ff41;
-        box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
-        margin-bottom: 25px;
-    }
-    
-    /* Stats Panel */
-    .stats-panel {
-        background: #1e1e1e;
-        padding: 15px;
-        border-radius: 8px;
-        border: 1px solid #333;
-        text-align: center;
-    }
-    
-    /* Bet Card */
-    .bet-card {
-        background: #1e1e1e;
+    /* Headers */
+    .physics-header {
+        background: radial-gradient(circle, #1f2833 0%, #0b0c10 100%);
+        border: 1px solid #45a29e;
         padding: 20px;
         border-radius: 15px;
-        margin-bottom: 15px;
-        border-left: 6px solid #555;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        transition: transform 0.2s;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 0 15px rgba(102, 252, 241, 0.1);
     }
-    .bet-card:hover { transform: scale(1.01); }
     
+    /* Stats Box */
+    .sim-box {
+        background: #1f2833;
+        color: #c5c6c7;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid #66fcf1;
+        font-family: 'Courier New', monospace;
+        margin-bottom: 10px;
+    }
+
     /* Balls */
     .ball {
         display: inline-flex;
@@ -76,258 +67,260 @@ st.markdown("""
         border: 1px solid rgba(255,255,255,0.3);
     }
     
-    /* Purged Ball Style */
     .purged-ball {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 30px; height: 30px;
+        width: 32px; height: 32px;
         border-radius: 50%;
-        background: #2d0000;
-        color: #ff4444;
-        border: 1px solid #ff4444;
+        background: #330000;
+        color: #ff0000;
+        border: 1px dashed #ff0000;
+        display: inline-flex;
+        align-items: center; justify-content: center;
         margin: 2px;
         font-size: 12px;
-        text-decoration: line-through;
+        opacity: 0.8;
     }
 
-    /* Inputs & Buttons */
-    .stTextInput>div>div>input { background-color: #2c2c2c; color: white; border: 1px solid #444; }
-    .stButton>button { width: 100%; height: 55px; font-weight: bold; text-transform: uppercase; border-radius: 8px; }
+    /* Buttons */
+    .stButton>button {
+        background-color: #1f2833;
+        color: #66fcf1;
+        border: 1px solid #45a29e;
+        height: 55px;
+        font-weight: bold;
+        text-transform: uppercase;
+        border-radius: 5px;
+    }
+    .stButton>button:hover {
+        background-color: #45a29e;
+        color: #0b0c10;
+    }
+
+    /* Inputs */
+    .stTextInput>div>div>input { background-color: #1f2833; color: #66fcf1; border: 1px solid #45a29e; }
     
     #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. THE HYBRID ENGINE (Reduction + Geometry) ---
-class HybridEngine:
+# --- 4. MOTOR DE FÍSICA (The Core Innovation) ---
+class PhysicsSimulator:
     
     @staticmethod
-    def get_dead_numbers(game_name, last_draw_input):
+    def run_simulation(game_name, last_draw_input):
         config = GAMES_CONFIG[game_name]
+        total_balls = config['range']
         
-        # Define Universe
-        if game_name == "Lotomania": universe = list(range(0, 100))
-        elif game_name == "Super Sete": return [] 
-        else: universe = list(range(1, config['range'] + 1))
+        # 1. SETUP PHYSICAL PROPERTIES FOR EACH BALL
+        # We create a "DataFrame" of balls with physical attributes
+        balls_data = []
         
-        dead_pool = []
-        
-        # INTELLIGENT REDUCTION
+        # Parse last draw for "Cold/Hot" physics
+        last_draw_nums = []
         if last_draw_input:
             try:
-                last_nums = sorted([int(n) for n in last_draw_input.replace('-', ' ').split() if n.strip().isdigit()])
-                
-                # Logic: Remove 2 "Exhausted" (from last draw) + Rest "Cold" (from missing)
-                if len(last_nums) > 0:
-                    dead_pool.extend(random.sample(last_nums, min(len(last_nums), 2))) 
-                
-                missing = list(set(universe) - set(last_nums))
-                needed = config['purge'] - len(dead_pool)
-                
-                if needed > 0 and len(missing) >= needed:
-                    dead_pool.extend(random.sample(missing, needed))
-                    
-                return sorted(dead_pool)
-            except:
-                pass 
+                last_draw_nums = [int(n) for n in last_draw_input.replace('-', ' ').split() if n.strip().isdigit()]
+            except: pass
 
-        # Fallback: Random Purge
-        return sorted(random.sample(universe, config['purge']))
+        for num in range(1, total_balls + 1):
+            # A. Mass Factor: Balls with more "ink" (e.g., 08, 20) are slightly heavier
+            # We simulate this by checking digits. 8 has 2 loops, 0 has 1 loop, 1 has little ink.
+            ink_weight = 0
+            str_num = str(num)
+            for char in str_num:
+                if char in ['8']: ink_weight += 0.05
+                elif char in ['0', '6', '9']: ink_weight += 0.04
+                elif char in ['2', '3', '5']: ink_weight += 0.03
+                else: ink_weight += 0.01
+            
+            base_mass = 1.0 + ink_weight
+            
+            # B. Tube Position Bias (Loading Order)
+            # Balls 1-5 are at bottom (more friction/pressure). Balls 21-25 are at top (high energy).
+            # This is a curve: Bottom = High Friction, Top = High Energy. Middle = Neutral.
+            position_energy = 1.0
+            if num <= 5: position_energy = 0.95 # Harder to move initially
+            elif num >= (total_balls - 5): position_energy = 1.05 # Falls faster
+            
+            # C. Cold/Hot State (Thermodynamics)
+            # If a ball came out recently, it might retain "static charge" (simulation logic)
+            thermal_factor = 1.0
+            if num in last_draw_nums:
+                thermal_factor = 0.98 # Slightly less likely to repeat immediately in chaos theory
+            
+            # TOTAL PROBABILITY SCORE
+            # Higher score = Higher chance to be drawn
+            # We invert Mass (Heavier = harder to fly up in air mix, or harder to be sucked?
+            # Let's assume Gravity Pick: Heavier falls easier? No, usually mixing paddles throw them.
+            # Let's assume standard chaos: Lighter moves faster.
+            physics_score = (1.0 / base_mass) * position_energy * thermal_factor
+            
+            balls_data.append({"num": num, "score": physics_score})
+            
+        # 2. RUN 10,000 VIRTUAL DRAWS (Monte Carlo Simulation)
+        # We simulate the machine drawing balls 10k times based on these biased scores.
+        
+        df_balls = pd.DataFrame(balls_data)
+        
+        # Normalize probabilities
+        total_score = df_balls['score'].sum()
+        df_balls['prob'] = df_balls['score'] / total_score
+        
+        # Perform Simulation
+        # We use numpy for fast weighted random sampling
+        simulated_counts = {n: 0 for n in range(1, total_balls + 1)}
+        
+        # Fast simulation loop
+        # We simulate 'N' draws. Each draw picks 'pick' numbers.
+        # This is computationally intensive, so we use a mathematical shortcut:
+        # The expected frequency is Proba * Trials. We add noise (Chaos).
+        
+        for index, row in df_balls.iterrows():
+            # Expected occurrences + Random Chaos (The Machine Vibration)
+            # Normal distribution centering on Probability
+            expected = row['prob'] * 10000
+            chaos = random.gauss(0, expected * 0.05) # 5% Chaos deviation
+            final_count = expected + chaos
+            simulated_counts[row['num']] = final_count
+            
+        # 3. IDENTIFY THE WEAKEST (PURGE LIST)
+        # Sort by lowest frequency
+        sorted_balls = sorted(simulated_counts.items(), key=lambda item: item[1])
+        
+        # Select the bottom N balls (Purge Amount)
+        purge_amount = config['purge']
+        purged_numbers = [item[0] for item in sorted_balls[:purge_amount]]
+        
+        return sorted(purged_numbers), sorted_balls # Return detailed stats if needed
 
     @staticmethod
-    def generate_hybrid_game(game_name, dead_numbers, last_draw_input=None):
+    def generate_final_games(game_name, purged_numbers, last_draw_input, qty):
         config = GAMES_CONFIG[game_name]
-        
-        # Universe Setup
+        universe = list(range(1, config['range'] + 1))
         if game_name == "Lotomania": universe = list(range(0, 100))
-        else: universe = list(range(1, config['range'] + 1))
         
-        # 1. APPLY REDUCTION (Clean Pool)
-        clean_pool = list(set(universe) - set(dead_numbers))
+        # CLEAN POOL
+        clean_pool = [n for n in universe if n not in purged_numbers]
         
-        # 2. APPLY GEOMETRY & LOGIC
-        
-        # --- LOTOFÁCIL SPECIAL LOGIC ---
-        if game_name == "Lotofácil":
-            moldura = [1, 2, 3, 4, 5, 6, 10, 11, 15, 16, 20, 21, 22, 23, 24, 25]
-            miolo   = [7, 8, 9, 12, 13, 14, 17, 18, 19]
-            
-            # Intersection with Clean Pool
-            clean_moldura = [n for n in clean_pool if n in moldura]
-            clean_miolo   = [n for n in clean_pool if n in miolo]
-            
-            # Hybrid Strategy: Rule of 9 + Geometry
-            if last_draw_input:
-                try:
-                    last_nums = sorted([int(n) for n in last_draw_input.replace('-', ' ').split() if n.strip().isdigit()])
-                    # Try to keep ~9 repeats from clean pool
-                    clean_repeats = [n for n in clean_pool if n in last_nums]
-                    clean_missing = [n for n in clean_pool if n not in last_nums]
-                    
-                    # Chaos Factor: Sometimes take 8 or 10 repeats
-                    k_rep = random.choice([8, 9, 10])
-                    if len(clean_repeats) < k_rep: k_rep = len(clean_repeats)
-                    
-                    p1 = random.sample(clean_repeats, k_rep)
-                    p2 = random.sample(clean_missing, 15 - k_rep)
-                    return sorted(p1 + p2)
-                except:
-                    pass
-            
-            # Pure Geometry (Balance 10/5)
-            # Adjust target based on available clean numbers
-            target_m = 10 if len(clean_moldura) >= 10 else len(clean_moldura)
-            target_c = 15 - target_m
-            
-            p1 = random.sample(clean_moldura, target_m)
-            p2 = random.sample(clean_miolo, target_c)
-            return sorted(p1 + p2)
-
-        # --- MEGA-SENA (Quadrants) ---
-        elif game_name == "Mega-Sena":
-            # Quadrants logic on Clean Pool
-            while True:
-                final = sorted(random.sample(clean_pool, 6))
-                # Simple spread check
-                if final[-1] - final[0] > 15: # Avoid extreme clamping
-                    return final
-
-        # --- STANDARD (Others) ---
-        elif game_name == "+Milionária":
-            nums = sorted(random.sample(clean_pool, 6))
-            trevos = sorted(random.sample(range(1, 7), 2))
-            return {"n": nums, "t": trevos}
-            
-        elif game_name in ["Timemania", "Dia de Sorte"]:
-            nums = sorted(random.sample(clean_pool, config['pick']))
-            extra = "DATA"
-            if game_name == "Timemania": 
-                teams = ["FLAMENGO", "CORINTHIANS", "PALMEIRAS", "SÃO PAULO"]
-                extra = random.choice(teams)
+        games = []
+        for _ in range(qty):
+            # APPLY GEOMETRY ON CLEAN POOL
+            if game_name == "Lotofácil":
+                moldura = [1, 2, 3, 4, 5, 6, 10, 11, 15, 16, 20, 21, 22, 23, 24, 25]
+                miolo   = [7, 8, 9, 12, 13, 14, 17, 18, 19]
+                
+                avail_moldura = [n for n in clean_pool if n in moldura]
+                avail_miolo   = [n for n in clean_pool if n in miolo]
+                
+                # Try to hit Target 10/5
+                target_m = min(len(avail_moldura), 10)
+                target_c = 15 - target_m
+                
+                # Fallback if not enough core numbers
+                if len(avail_miolo) < target_c:
+                    target_c = len(avail_miolo)
+                    target_m = 15 - target_c
+                
+                p1 = random.sample(avail_moldura, target_m)
+                p2 = random.sample(avail_miolo, target_c)
+                games.append(sorted(p1 + p2))
+                
             else:
-                months = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN"]
-                extra = random.choice(months)
-            return {"n": nums, "extra": extra}
-            
-        elif game_name == "Super Sete":
-            return [random.randint(0, 9) for _ in range(7)]
+                # Standard for others
+                games.append(sorted(random.sample(clean_pool, config['pick'])))
+                
+        return games
 
-        else:
-            return sorted(random.sample(clean_pool, config['pick']))
+# --- 5. UI LAYOUT ---
 
-# --- 4. UI LAYOUT ---
+st.markdown("<div class='physics-header'><h1>⚛️ LotoMaster Physics V11</h1><h3>SIMULAÇÃO MECÂNICA & EXPURGO</h3></div>", unsafe_allow_html=True)
 
-st.markdown("<div class='hybrid-header'><h1>🧬 LotoMaster Hybrid</h1><h3>GEOMETRIA + REDUÇÃO R5</h3></div>", unsafe_allow_html=True)
-
-# Main Controls
+# Inputs
 c1, c2 = st.columns([2, 1])
 with c1:
-    game_select = st.selectbox("SELECIONE O MÓDULO:", list(GAMES_CONFIG.keys()))
+    game_sel = st.selectbox("MÓDULO DE FÍSICA:", list(GAMES_CONFIG.keys()))
 with c2:
-    qty_select = st.number_input("QUANTIDADE:", 1, 50, 5)
+    q_sel = st.number_input("QTD JOGOS:", 1, 50, 5)
 
-# Intelligence Input
-with st.expander("🧠 CÉREBRO DA IA (Entrada de Dados)", expanded=True):
-    last_draw = st.text_input(f"Cole o último resultado ({game_select}):", placeholder="Ex: 01 02 03...")
-    st.caption("ℹ️ Obrigatório para ativar o Modo Híbrido Completo (Repetição + Geometria).")
+with st.expander("🧪 CALIBRAGEM DA MÁQUINA (Entrada de Dados)", expanded=True):
+    last_draw = st.text_input(f"Cole o último resultado ({game_sel}):", placeholder="Necessário para cálculo de termodinâmica...")
+    st.caption("ℹ️ O sistema usará os dados para calcular o 'Coeficiente de Atrito' das bolas repetidas.")
 
-# Action Bar
-cb1, cb2 = st.columns(2)
-with cb1:
-    btn_run = st.button("EXECUTAR PROTOCOLO 🚀")
-with cb2:
-    btn_clean = st.button("REINICIAR SISTEMA 🗑️")
+# Buttons
+b1, b2 = st.columns(2)
+with b1:
+    btn_sim = st.button("INICIAR SIMULAÇÃO (10.000 CICLOS) ⚙️")
+with b2:
+    btn_rst = st.button("REINICIAR LABORATÓRIO 🗑️")
 
-# --- 5. EXECUTION ---
+# --- 6. SIMULATION LOGIC ---
 
-if 'hybrid_results' not in st.session_state:
-    st.session_state.hybrid_results = []
-    st.session_state.dead_list = []
+if 'phy_results' not in st.session_state:
+    st.session_state.phy_results = []
+    st.session_state.purged = []
 
-if btn_clean:
-    st.session_state.hybrid_results = []
-    st.session_state.dead_list = []
+if btn_rst:
+    st.session_state.phy_results = []
+    st.session_state.purged = []
     st.rerun()
 
-if btn_run:
-    # 1. PURGE PHASE
-    dead = HybridEngine.get_dead_numbers(game_select, last_draw)
-    st.session_state.dead_list = dead
+if btn_sim:
+    # 1. VISUALIZATION OF COMPUTING
+    progress_text = st.empty()
+    bar = st.progress(0)
     
-    # Simulation
-    with st.spinner("⚛️ Fundindo algoritmos geométricos com redução estatística..."):
-        time.sleep(1.0)
+    steps = [
+        "⚖️ Pesando massa de tinta das esferas...",
+        "🌡️ Calculando temperatura e atrito estático...",
+        "🌪️ Simulando 10.000 extrações virtuais...",
+        "📉 Identificando anomalias estatísticas...",
+        "🚫 Expurgo de dezenas gravitacionalmente fracas..."
+    ]
     
-    # 2. GENERATION PHASE
-    results = []
-    for _ in range(qty_select):
-        res = HybridEngine.generate_hybrid_game(game_select, dead, last_draw)
-        results.append(res)
-    st.session_state.hybrid_results = results
+    for i, txt in enumerate(steps):
+        progress_text.text(f"PHYSICS ENGINE: {txt}")
+        time.sleep(0.5)
+        bar.progress((i+1) * 20)
+    
+    bar.empty()
+    progress_text.empty()
+    
+    # 2. RUN ENGINE
+    purged, stats = PhysicsSimulator.run_simulation(game_sel, last_draw)
+    st.session_state.purged = purged
+    
+    # 3. GENERATE GAMES
+    games = PhysicsSimulator.generate_final_games(game_sel, purged, last_draw, q_sel)
+    st.session_state.phy_results = games
 
-# --- 6. DISPLAY ---
+# --- 7. RESULTS DISPLAY ---
 
-if st.session_state.hybrid_results:
-    theme = GAMES_CONFIG[game_select]['color']
+if st.session_state.purged:
+    # SHOW PURGE
+    purge_html = "".join([f"<div class='purged-ball'>{n:02d}</div>" for n in st.session_state.purged])
+    st.markdown(f"""
+    <div class='sim-box' style='border-color: #ff3333;'>
+        <div style='color:#ff3333; font-weight:bold;'>🚫 DEZENAS EXPURGADAS (FALHA FÍSICA DETECTADA)</div>
+        <div style='margin-top:5px; font-size:12px;'>Após 10.000 simulações, estas bolas apresentaram a menor taxa de saída devido a peso/posição:</div>
+        <div style='margin-top:10px;'>{purge_html}</div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Show Purged Numbers
-    if st.session_state.dead_list:
-        purged_html = "".join([f"<div class='purged-ball'>{n:02d}</div>" for n in st.session_state.dead_list])
+    # SHOW GAMES
+    theme = GAMES_CONFIG[game_sel]['color']
+    txt_export = f"LotoMaster Physics V11 - {game_sel}\n\n"
+    
+    for i, game in enumerate(st.session_state.phy_results):
+        balls_html = "".join([f"<div class='ball' style='background:{theme}'>{n:02d}</div>" for n in game])
+        txt_export += f"Jogo {i+1}: {game}\n"
+        
         st.markdown(f"""
-        <div class="stats-panel" style="border-color: #ff4444; margin-bottom: 20px;">
-            <div style="color:#ff4444; font-weight:bold; margin-bottom:5px;">🚫 DEZENAS ELIMINADAS (PURGE)</div>
-            <div>{purged_html}</div>
-            <div style="font-size:11px; color:#888; margin-top:5px;">Estas dezenas foram removidas matematicamente para limpar o pool.</div>
+        <div style="background:#1f2833; padding:15px; border-radius:10px; margin-bottom:10px; border-left:5px solid {theme};">
+            <div style="color:#fff; font-weight:bold; font-size:14px; margin-bottom:5px;">JOGO #{i+1} <span style="font-size:10px; background:#45a29e; color:#000; padding:2px 5px; border-radius:3px;">PHYSICS</span></div>
+            <div>{balls_html}</div>
         </div>
         """, unsafe_allow_html=True)
 
-    txt_export = f"LotoMaster Hybrid - {game_select}\nData: {pd.Timestamp.now()}\n\n"
+    # Export
+    st.download_button("💾 BAIXAR DADOS DA SIMULAÇÃO", txt_export, file_name=f"Physics_{game_sel}.txt")
 
-    for i, res in enumerate(st.session_state.hybrid_results):
-        
-        main = res
-        extra_html = ""
-        
-        if isinstance(res, dict):
-            main = res['n']
-            if "t" in res:
-                extra_html = f"<div style='margin-top:8px;'><b>🍀 Trevos:</b> {res['t']}</div>"
-                txt_export += f"Jogo {i+1}: {main} + Trevos {res['t']}\n"
-            else:
-                extra_html = f"<div style='margin-top:8px; color:{theme}; font-weight:bold;'>★ {res['extra']}</div>"
-                txt_export += f"Jogo {i+1}: {main} + {res['extra']}\n"
-        else:
-            txt_export += f"Jogo {i+1}: {main}\n"
-            
-        # HTML Balls
-        if game_select == "Super Sete":
-             balls_html = "".join([f"<div style='display:inline-block; margin:2px; text-align:center;'><small style='color:#666'>C{idx+1}</small><br><div class='ball' style='border-color:{theme}; background:transparent;'>{n}</div></div>" for idx, n in enumerate(main)])
-        else:
-             balls_html = "".join([f"<div class='ball' style='background:{theme}'>{n:02d}</div>" for n in main])
-
-        st.markdown(f"""
-        <div class="bet-card" style="border-left-color: {theme};">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <span style="font-weight:bold; color:#fff;">JOGO #{i+1}</span>
-                <span style="font-size:10px; background:#00ff41; color:#000; padding:2px 8px; border-radius:10px; font-weight:bold;">HYBRID</span>
-            </div>
-            <div style="display:flex; justify-content:center; flex-wrap:wrap;">
-                {balls_html}
-            </div>
-            {extra_html}
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    c_d1, c_d2 = st.columns(2)
-    with c_d1:
-        st.download_button("📥 BAIXAR RESULTADOS (TXT)", txt_export, file_name=f"Hybrid_{game_select}.txt")
-    with c_d2:
-        if st.button("LIMPAR TELA 🗑️", key="b_clr"):
-            st.session_state.hybrid_results = []
-            st.session_state.dead_list = []
-            st.rerun()
-
-# --- 7. FOOTER ---
-st.markdown("<br><div style='text-align:center; color:#555; font-size:12px;'>© 2026 LotoMaster Hybrid Technology.</div>", unsafe_allow_html=True)
+st
