@@ -323,4 +323,4 @@ if st.session_state.purged:
     # Export
     st.download_button("💾 BAIXAR DADOS DA SIMULAÇÃO", txt_export, file_name=f"Physics_{game_sel}.txt")
 
-st
+st.markdown("<br><div style='text-align:center; font-size:11px; color:#444;'>Engine V11.0 - Thermodynamic & Gravity Simulation Model.</div>", unsafe_allow_html=True)
