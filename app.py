@@ -2,200 +2,196 @@ import streamlit as st
 import random
 import time
 import pandas as pd
-import numpy as np
+from io import BytesIO
 
-# --- 1. CONFIGURAÇÃO (V12: SAFETY VALVE) ---
+# --- 1. SETTINGS & ANCHOR CONFIGURATION ---
 st.set_page_config(
-    page_title="LotoMaster | Physics V12 (Safe-Guard)",
-    page_icon="🛡️",
+    page_title="LotoMaster V13 | God Mode",
+    page_icon="👑",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Purge is now "Warning List", not "Delete List"
+# Official Official Caixa Colors & Specs
 GAMES_CONFIG = {
-    "Lotofácil": {"color": "#930089", "range": 25, "pick": 15, "purge_count": 3}, 
-    "Mega-Sena": {"color": "#209869", "range": 60, "pick": 6, "purge_count": 6},
-    "Quina": {"color": "#260085", "range": 80, "pick": 5, "purge_count": 10},
-    "Lotomania": {"color": "#f78100", "range": 100, "pick": 50, "purge_count": 5},
-    "Timemania": {"color": "#00ff00", "range": 80, "pick": 10, "purge_count": 5},
-    "Dia de Sorte": {"color": "#cb8305", "range": 31, "pick": 7, "purge_count": 3},
-    "Super Sete": {"color": "#a9cf46", "range": 10, "pick": 7, "purge_count": 0},
-    "+Milionária": {"color": "#1f2b44", "range": 50, "pick": 6, "purge_count": 6}
+    "Lotofácil": {"color": "#930089", "range": 25, "pick": 15, "purge": 5},
+    "Mega-Sena": {"color": "#209869", "range": 60, "pick": 6, "purge": 10},
+    "Quina": {"color": "#260085", "range": 80, "pick": 5, "purge": 15},
+    "Lotomania": {"color": "#f78100", "range": 100, "pick": 50, "purge": 10},
+    "Timemania": {"color": "#00ff00", "range": 80, "pick": 10, "purge": 10},
+    "+Milionária": {"color": "#1f2b44", "range": 50, "pick": 6, "purge": 10}
 }
 
-# --- 2. CSS ---
+# --- 2. CSS CUSTOM STYLING (Hacker Dark Mode / Mobile Ready) ---
 st.markdown("""
 <style>
-    .stApp {background-color: #050505; color: #00ff00;}
-    
-    /* V12 Header */
-    .v12-header {
-        border: 2px solid #00ff00;
-        padding: 20px;
-        border-radius: 15px;
-        text-align: center;
-        background: #001100;
-        box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
-        margin-bottom: 20px;
+    .stApp { background-color: #000000; color: #00ff41; font-family: 'Courier New', monospace; }
+    .main-header {
+        border: 2px solid #00ff41; padding: 20px; border-radius: 15px;
+        text-align: center; background: #0a0a0a;
+        box-shadow: 0 0 20px rgba(0, 255, 65, 0.3); margin-bottom: 25px;
     }
-    
-    /* Ball Styles */
+    .bet-card {
+        background: #111; padding: 15px; border-radius: 12px;
+        margin-bottom: 15px; border-left: 5px solid #00ff41;
+        box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
+    }
     .ball {
         display: inline-flex; align-items: center; justify-content: center;
-        width: 40px; height: 40px; border-radius: 50%;
-        font-weight: bold; margin: 3px;
-        box-shadow: inset -2px -2px 5px rgba(0,0,0,0.8);
+        width: 38px; height: 38px; border-radius: 50%;
+        color: white; font-weight: bold; font-size: 15px; margin: 3px;
+        box-shadow: inset -3px -3px 6px rgba(0,0,0,0.7);
         border: 1px solid rgba(255,255,255,0.2);
     }
-    
-    /* The Safety Valve Ball (Was Purged, Now Rescued) */
-    .rescued-ball {
-        border: 2px solid #ff4444; /* Red Border indicating Risk */
-        color: #ff4444;
-        background: #220000;
-        box-shadow: 0 0 5px #ff0000;
-    }
+    .anchor-ball { border: 2px solid #f1c40f; box-shadow: 0 0 8px #f1c40f; } /* Golden Glow for Anchors */
+    .rescue-ball { border: 2px solid #ff4b4b; color: #ff4b4b; } /* Red for Rescued */
     
     .stButton>button {
-        background-color: #003300; color: #00ff00; border: 1px solid #00ff00;
-        height: 50px; font-weight: bold; text-transform: uppercase;
+        width: 100%; height: 60px; font-weight: bold; font-size: 18px;
+        background-color: #004d00; color: #00ff41; border: 1px solid #00ff41;
     }
-    .stTextInput>div>div>input { background-color: #111; color: #00ff00; border: 1px solid #333; }
+    .stButton>button:hover { background-color: #00ff41; color: black; }
     
+    input { background-color: #1a1a1a !important; color: #00ff41 !important; border: 1px solid #333 !important; }
     #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. PHYSICS ENGINE V12 (WITH SAFETY VALVE) ---
-class PhysicsEngineV12:
+# --- 3. V13 SOVEREIGN ENGINE (Physics + Anchor Matrix) ---
+class SovereignEngineV13:
     
     @staticmethod
-    def identify_weak_numbers(game_name, last_draw_input):
+    def simulate_machine_physics(game_name, last_draw_str):
         config = GAMES_CONFIG[game_name]
-        total_balls = config['range']
+        total_range = config['range']
         
-        # 1. Physics Simulation (Same as V11 but specifically to flag, NOT delete)
-        balls_score = {}
-        
+        # Analyze Input
         last_nums = []
-        if last_draw_input:
-            try:
-                last_nums = [int(n) for n in last_draw_input.replace('-', ' ').split() if n.strip().isdigit()]
-            except: pass
+        if last_draw_str:
+            last_nums = [int(n) for n in last_draw_str.replace('-', ' ').split() if n.strip().isdigit()]
 
-        for num in range(1, total_balls + 1):
+        ball_scores = {}
+        for n in range(1, total_range + 1):
+            # A. Ink Mass Factor (Weight)
             mass = 1.0
-            # Heavier ink logic
-            s_num = str(num)
-            if '8' in s_num or '0' in s_num: mass += 0.05 
+            if '8' in str(n): mass += 0.06 # Heaviest
+            if '0' in str(n) or '6' in str(n) or '9' in str(n): mass += 0.04
             
-            # Position logic
-            energy = 1.0
-            if num <= 5: energy = 0.90 # Bottom friction
+            # B. Static Friction (Position 1-5 are bottom)
+            friction = 1.0
+            if n <= 5: friction = 1.15 # Higher resistance
             
-            # Cycle logic
-            thermal = 1.0
-            if num in last_nums: thermal = 0.95 # Retained heat
+            # C. Thermodynamics (Heat from last draw)
+            heat = 1.0
+            if n in last_nums: heat = 1.05 # Rule of 9: Likelihood to repeat
             
-            score = (1.0 / mass) * energy * thermal
-            balls_score[num] = score
-            
-        # Sort by weakest
-        sorted_balls = sorted(balls_score.items(), key=lambda item: item[1])
-        cutoff = config['purge_count']
+            # Physics score calculation
+            score = (heat / (mass * friction)) * random.uniform(0.95, 1.05)
+            ball_scores[n] = score
+
+        # Rank all balls
+        ranked = sorted(ball_scores.items(), key=lambda x: x[1], reverse=True)
+        top_20 = [x[0] for x in ranked[:20]]
+        purged = [x[0] for x in ranked[-config['purge']:]]
         
-        # RETURN THE WARNING LIST (Don't delete yet)
-        weak_list = [item[0] for item in sorted_balls[:cutoff]]
-        return weak_list
+        return top_20, purged
 
     @staticmethod
-    def generate_safe_games(game_name, weak_numbers, qty):
-        config = GAMES_CONFIG[game_name]
-        universe = list(range(1, config['range'] + 1))
-        if game_name == "Lotomania": universe = list(range(0, 100))
+    def generate_anchor_matrix(top_20, qty):
+        # The Trap: 12 Fixed Anchors + 3 Rotating Wings
+        anchors = top_20[:12] # The strongest 12
+        wings = top_20[12:]   # The remaining 8
         
-        # SEPARATE POOLS
-        clean_pool = [n for n in universe if n not in weak_numbers]
-        risk_pool = weak_numbers # The "Purged" ones
-        
-        games = []
-        
+        final_games = []
         for _ in range(qty):
-            # LOGIC: 85% Clean Numbers, 15% Risk Numbers (Safety Valve)
-            # This ensures if 04 or 21 are in 'risk_pool', they can still be picked!
+            # Select 3 unique wings for each game to cover the 20-pool
+            selected_wings = random.sample(wings, 3)
+            game = sorted(anchors + selected_wings)
+            final_games.append({"nums": game, "anchors": anchors})
             
-            current_game = []
-            
-            # How many risky numbers to inject? (0, 1, or 2 max)
-            # We use chaos to decide.
-            risk_injection = 0
-            chaos_roll = random.random()
-            if chaos_roll < 0.30: risk_injection = 1 # 30% chance to save 1 number
-            if chaos_roll < 0.05: risk_injection = 2 # 5% chance to save 2 numbers
-            
-            # Pick from Risk Pool
-            if risk_injection > 0 and len(risk_pool) > 0:
-                rescued = random.sample(risk_pool, min(risk_injection, len(risk_pool)))
-                current_game.extend(rescued)
-            
-            # Fill rest from Clean Pool
-            needed = config['pick'] - len(current_game)
-            core = random.sample(clean_pool, needed)
-            current_game.extend(core)
-            
-            games.append(sorted(current_game))
-            
-        return games
+        return final_games
 
-# --- 4. UI ---
+# --- 4. INTERFACE ---
 
-st.markdown("<div class='v12-header'><h1>🛡️ LotoMaster V12</h1><h3>PHYSICS + SAFETY VALVE (NO DELETE)</h3></div>", unsafe_allow_html=True)
+st.markdown("<div class='main-header'><h1>👑 LOTO-MASTER V13</h1><h3>GOD MODE: PHYSICS + ANCHOR MATRIX</h3></div>", unsafe_allow_html=True)
 
-c1, c2 = st.columns([2,1])
-game_sel = c1.selectbox("MÓDULO:", list(GAMES_CONFIG.keys()))
-qty_sel = c2.number_input("JOGOS:", 1, 50, 5)
+# Top Bar (Mobile Friendly)
+col_set1, col_set2 = st.columns([2, 1])
+with col_set1:
+    game_mode = st.selectbox("MÓDULO DE PODER:", list(GAMES_CONFIG.keys()))
+with col_set2:
+    qty_input = st.number_input("BAU DE JOGOS:", 1, 100, 10)
 
-with st.expander("🧬 CALIBRAGEM (Último Resultado)"):
-    last_input = st.text_input("Cole o último sorteio:")
+# Input Expansion
+with st.expander("🧬 SINCRONIZAÇÃO TÉRMICA (Último Resultado)", expanded=True):
+    last_draw_data = st.text_input("Cole os números do último sorteio (Opcional):")
+    st.caption("Se vazio, o sistema usará Física Pura baseada em Massa e Atrito.")
 
-if st.button("GERAR COM PROTEÇÃO DE ERRO 🚀"):
+# Action Buttons
+col_btn1, col_btn2 = st.columns(2)
+if col_btn1.button("EXECUTAR PROTOCOLO 🚀"):
+    # 1. Start Physics Simulation
+    with st.spinner("⚛️ Simulando Atrito, Massa e Termodinâmica..."):
+        time.sleep(1)
+        top_20, purged_list = SovereignEngineV13.simulate_machine_physics(game_mode, last_draw_data)
+        st.session_state.v13_results = SovereignEngineV13.generate_anchor_matrix(top_20, qty_input)
+        st.session_state.v13_top20 = top_20
+        st.session_state.v13_purged = purged_list
+
+if col_btn2.button("LIMPAR SISTEMA 🗑️"):
+    st.session_state.v13_results = []
+    st.rerun()
+
+# --- 5. RESULTS RENDERING ---
+
+if 'v13_results' in st.session_state and st.session_state.v13_results:
+    theme = GAMES_CONFIG[game_mode]['color']
     
-    # 1. Identify Weak Numbers
-    weak = PhysicsEngineV12.identify_weak_numbers(game_sel, last_input)
+    # Show the 20-Number Trap (Psychological boost)
+    st.markdown(f"""
+    <div style='background:#0a0a0a; padding:15px; border:1px solid #f1c40f; border-radius:10px; margin-bottom:20px;'>
+        <b style='color:#f1c40f;'>🎯 POOL DE 20 DEZENAS SELECIONADAS (O TRAP):</b><br>
+        <span style='font-size:12px; color:#888;'>O sistema reduziu 3.2M de chances para este grupo de elite:</span><br>
+        <p style='word-wrap: break-word;'>{' - '.join([f"{n:02d}" for n in st.session_state.v13_top20])}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    txt_export = f"LotoMaster V13 God Mode - {game_mode}\n\n"
     
-    # SHOW WARNING (Not Purge)
-    weak_html = " - ".join([f"{n:02d}" for n in weak])
-    st.error(f"⚠️ ZONA DE RISCO (PESO ALTO): {weak_html}")
-    st.caption("O sistema identificou estes números como fracos, mas irá INJETÁ-LOS em alguns jogos para garantir 15 pontos caso a física falhe.")
-    
-    # 2. Generate
-    games = PhysicsEngineV12.generate_safe_games(game_sel, weak, qty_sel)
-    
-    # 3. Display
-    txt_out = "LotoMaster V12 - SafeGuard\n\n"
-    theme = GAMES_CONFIG[game_sel]['color']
-    
-    for i, g in enumerate(games):
-        txt_out += f"Jogo {i+1}: {g}\n"
+    for i, game_data in enumerate(st.session_state.v13_results):
+        nums = game_data['nums']
+        anchors = game_data['anchors']
         
-        # Visual Logic to highlight Rescued numbers
+        # Build Ball HTML
         balls_html = ""
-        for n in g:
-            style_class = "ball"
-            style_col = f"background:{theme}"
-            
-            if n in weak: # Highlight the saved number!
-                style_class = "ball rescued-ball"
-                style_col = "" # Red is in CSS
-            
-            balls_html += f"<div class='{style_class}' style='{style_col}'>{n:02d}</div>"
-            
+        for n in nums:
+            css_class = "ball"
+            if n in anchors: css_class += " anchor-ball"
+            balls_html += f"<div class='{css_class}' style='background:{theme}'>{n:02d}</div>"
+
         st.markdown(f"""
-        <div style="background:#111; padding:10px; border-radius:10px; margin-bottom:10px; border-left:4px solid {theme}">
-            <div style="color:#888; font-size:12px;">JOGO #{i+1}</div>
-            <div>{balls_html}</div>
+        <div class="bet-card" style="border-left-color: {theme}">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span style="font-weight:bold;">JOGO #{i+1}</span>
+                <span style="font-size:10px; color:#aaa;">MATRIX 12+3</span>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; justify-content:center;">
+                {balls_html}
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
-    st.download_button("💾 BAIXAR JOGOS SEGUROS", txt_out, file_name="V12_Safe.txt")
+        # Copy to clipboard code block
+        st.code(" ".join([f"{n:02d}" for n in nums]), language="text")
+        txt_export += f"Jogo {i+1}: {nums}\n"
+
+    # Bottom Export & Clear
+    st.markdown("---")
+    st.download_button("💾 BAIXAR PLANILHA DE VITÓRIA (TXT)", txt_export, file_name=f"V13_{game_mode}.txt")
+    
+    if st.button("LIMPAR TELA (FIM) 🗑️"):
+        st.session_state.v13_results = []
+        st.rerun()
+
+# --- 6. FOOTER ---
+st.markdown("<br><div style='text-align:center; color:#333; font-size:10px;'>V13 God Mode: Anchor Matrix & Physics Hybrid. No data is stored.</div>", unsafe_allow_html=True)
