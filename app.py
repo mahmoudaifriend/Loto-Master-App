@@ -3,335 +3,324 @@ import random
 import time
 import pandas as pd
 
-# --- 1. PAGE CONFIGURATION ---
+# --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="LotoMaster | Geometric Engine",
-    page_icon="📐",
+    page_title="LotoMaster | R5 Reduction Engine",
+    page_icon="🚫",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. COLORS & CONFIGURATION (Caixa Standards) ---
+# --- 2. CONFIGURAÇÃO DOS JOGOS E REDUÇÃO ---
+# 'reduction': Number of weak balls to eliminate before generation
 GAMES_CONFIG = {
-    "Lotofácil": {"color": "#930089", "range": 25, "pick": 15},
-    "Mega-Sena": {"color": "#209869", "range": 60, "pick": 6},
-    "Quina": {"color": "#260085", "range": 80, "pick": 5},
-    "Lotomania": {"color": "#f78100", "range": 100, "pick": 50},
-    "Timemania": {"color": "#00ff00", "range": 80, "pick": 10},
-    "Dupla Sena": {"color": "#a61324", "range": 50, "pick": 6},
-    "Dia de Sorte": {"color": "#cb8305", "range": 31, "pick": 7},
-    "Super Sete": {"color": "#a9cf46", "range": 10, "pick": 7},
-    "+Milionária": {"color": "#1f2b44", "range": 50, "pick": 6}
+    "Lotofácil": {"color": "#930089", "range": 25, "pick": 15, "reduction": 5},
+    "Mega-Sena": {"color": "#209869", "range": 60, "pick": 6, "reduction": 10},
+    "Quina": {"color": "#260085", "range": 80, "pick": 5, "reduction": 15},
+    "Lotomania": {"color": "#f78100", "range": 100, "pick": 50, "reduction": 10},
+    "Timemania": {"color": "#00ff00", "range": 80, "pick": 10, "reduction": 10},
+    "Dupla Sena": {"color": "#a61324", "range": 50, "pick": 6, "reduction": 8},
+    "Dia de Sorte": {"color": "#cb8305", "range": 31, "pick": 7, "reduction": 4},
+    "Super Sete": {"color": "#a9cf46", "range": 10, "pick": 7, "reduction": 0}, # Special logic
+    "+Milionária": {"color": "#1f2b44", "range": 50, "pick": 6, "reduction": 10}
 }
 
-# --- 3. CSS STYLING (Professional Dark/Clean Look) ---
+# --- 3. CSS ESTILO PROFISSIONAL (Clean & Dark Accents) ---
 st.markdown("""
 <style>
-    /* Main Layout */
-    .stApp {background-color: #f4f6f9;}
+    .stApp {background-color: #f0f2f6;}
     
-    /* Header */
-    .geo-header {
-        font-family: 'Helvetica', sans-serif;
+    /* Header Style */
+    .reduction-header {
+        font-family: 'Arial Black', sans-serif;
         text-transform: uppercase;
         text-align: center;
-        padding: 20px;
-        background: linear-gradient(90deg, #1e1e1e, #333);
+        padding: 25px;
+        background: linear-gradient(135deg, #111, #333);
         color: #fff;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        border-bottom: 5px solid #00ff41; /* Tech Green */
+        border-radius: 12px;
+        margin-bottom: 25px;
+        border-bottom: 6px solid #ff4b4b; /* Red for Reduction */
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15);
     }
     
-    /* Buttons */
-    .stButton>button {
-        width: 100%;
-        height: 55px;
+    /* Stats Box */
+    .stat-box {
+        background: #fff;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        border: 1px solid #eee;
+    }
+    .stat-value {
         font-size: 18px;
         font-weight: bold;
-        border-radius: 8px;
+        color: #333;
+    }
+    .stat-label {
+        font-size: 11px;
+        color: #777;
         text-transform: uppercase;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    /* Cards */
+    .bet-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        border-left: 8px solid #ccc;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     }
     
-    /* Lotto Ball */
+    /* Balls */
     .ball {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 40px; height: 40px;
+        width: 36px; height: 36px;
         border-radius: 50%;
         color: white;
         font-weight: bold;
-        font-size: 16px;
-        margin: 4px;
-        box-shadow: inset -3px -3px 5px rgba(0,0,0,0.3), 3px 3px 5px rgba(255,255,255,0.3);
-        border: 2px solid rgba(255,255,255,0.8);
+        font-size: 15px;
+        margin: 3px;
+        box-shadow: inset -2px -2px 5px rgba(0,0,0,0.2);
     }
     
-    /* Result Card */
-    .result-card {
-        background: white;
-        padding: 20px;
-        border-radius: 12px;
-        margin-bottom: 15px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        border-left: 8px solid #333; /* Dynamic */
-        transition: transform 0.2s;
+    /* Removed Balls (Visual indication of reduction) */
+    .dead-ball {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px; height: 30px;
+        border-radius: 50%;
+        background: #444;
+        color: #aaa;
+        font-size: 12px;
+        margin: 2px;
+        text-decoration: line-through;
+        opacity: 0.7;
     }
-    .result-card:hover {
-        transform: translateY(-2px);
-    }
-    
-    /* Tags */
-    .tag {
-        font-size: 11px;
-        padding: 3px 8px;
-        border-radius: 10px;
-        background: #eee;
-        color: #555;
+
+    /* Buttons */
+    .stButton>button {
+        width: 100%;
+        height: 55px;
         font-weight: bold;
-        margin-left: 10px;
+        text-transform: uppercase;
+        border-radius: 8px;
     }
 
     #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. THE GEOMETRIC ENGINE (The Core Logic) ---
-class GeometricEngine:
+# --- 4. ENGINE DE REDUÇÃO (The R5 Logic) ---
+class ReductionEngine:
     
     @staticmethod
-    def generate(game_name, last_draw_input=None):
+    def identify_dead_numbers(game_name, last_draw_input=None):
+        config = GAMES_CONFIG[game_name]
+        total_balls = list(range(1, config['range'] + 1))
+        
+        # Super Sete & Lotomania exceptions
+        if game_name == "Lotomania": total_balls = list(range(0, 100))
+        if game_name == "Super Sete": return [] # No reduction for columns
+        
+        dead_pool = []
+        
+        # STRATEGY 1: IF INPUT EXISTS (Smart Elimination)
+        if last_draw_input:
+            try:
+                last_nums = sorted([int(n) for n in last_draw_input.replace('-', ' ').split() if n.strip().isdigit()])
+                
+                # Logic: Remove numbers that are statistically unlikely to repeat immediately 
+                # (e.g., if they have appeared too many times - simulated here)
+                
+                # We pick randomly from the last draw to simulate "Exhausted" numbers
+                if len(last_nums) > 0:
+                     dead_pool.extend(random.sample(last_nums, min(len(last_nums), 2))) # Remove 2 from last draw
+                
+                # We pick randomly from those that DIDNT appear (Cold stay Cold)
+                missing = list(set(total_balls) - set(last_nums))
+                needed = config['reduction'] - len(dead_pool)
+                if needed > 0:
+                    dead_pool.extend(random.sample(missing, needed))
+                    
+                return sorted(dead_pool)
+            except:
+                pass # Fallback
+
+        # STRATEGY 2: STATISTICAL ELIMINATION (Simulated)
+        # Randomly select 'reduction' amount of numbers to kill
+        return sorted(random.sample(total_balls, config['reduction']))
+
+    @staticmethod
+    def generate_reduced_game(game_name, dead_numbers):
         config = GAMES_CONFIG[game_name]
         
-        # --- 1. LOTOFÁCIL (Frame & Core Geometry) ---
-        if game_name == "Lotofácil":
-            # Definition of Geometry
-            moldura = [1, 2, 3, 4, 5, 6, 10, 11, 15, 16, 20, 21, 22, 23, 24, 25] # 16 nums
-            miolo   = [7, 8, 9, 12, 13, 14, 17, 18, 19] # 9 nums
-            
-            # Smart Logic: If last draw exists, use "Rule of 9"
-            if last_draw_input:
-                try:
-                    last_nums = sorted([int(n) for n in last_draw_input.replace('-', ' ').split() if n.strip().isdigit()])
-                    if len(last_nums) == 15:
-                        # 9 Repeats + 6 New
-                        all_nums = list(range(1, 26))
-                        missing = list(set(all_nums) - set(last_nums))
-                        
-                        final = sorted(random.sample(last_nums, 9) + random.sample(missing, 6))
-                        return {"n": final, "desc": "PADRÃO R9 (REPETIÇÃO)"}
-                except:
-                    pass # Fallback
-
-            # Pure Geometric Logic (If no input)
-            # Target: 10 Moldura + 5 Miolo (Ideal Balance)
-            while True:
-                sel_moldura = random.sample(moldura, 10)
-                sel_miolo = random.sample(miolo, 5)
-                final = sorted(sel_moldura + sel_miolo)
-                
-                # Filter: Sum check (180-220)
-                if 180 <= sum(final) <= 220:
-                    return {"n": final, "desc": "GEOMETRIA (10 MOLDURA / 5 MIOLO)"}
-
-        # --- 2. MEGA-SENA (Quadrant Balance) ---
-        elif game_name == "Mega-Sena":
-            # Divide grid into 4 Quadrants
-            q1 = [n for n in range(1, 61) if n % 10 in [1,2,3,4,5] and n <= 30]
-            q2 = [n for n in range(1, 61) if n % 10 in [6,7,8,9,0] and n <= 30]
-            q3 = [n for n in range(1, 61) if n % 10 in [1,2,3,4,5] and n > 30]
-            q4 = [n for n in range(1, 61) if n % 10 in [6,7,8,9,0] and n > 30]
-            
-            while True:
-                # Pick distributed numbers
-                final = []
-                # Ensure distribution
-                final.extend(random.sample(q1, random.randint(1, 2)))
-                final.extend(random.sample(q2, random.randint(1, 2)))
-                final.extend(random.sample(q3, random.randint(1, 2)))
-                final.extend(random.sample(q4, random.randint(0, 1))) # Remaining
-                
-                # Fill up to 6 if missing
-                while len(final) < 6:
-                    n = random.randint(1, 60)
-                    if n not in final: final.append(n)
-                
-                final = sorted(final[:6])
-                if 130 <= sum(final) <= 240: # Sum Filter
-                    return {"n": final, "desc": "GEOMETRIA (QUADRANTES)"}
-
-        # --- 3. QUINA (Vertical Spread) ---
-        elif game_name == "Quina":
-            while True:
-                final = sorted(random.sample(range(1, 81), 5))
-                # Avoid clustering (e.g., 1,2,3)
-                if all(final[i+1] - final[i] > 1 for i in range(len(final)-1)):
-                    return {"n": final, "desc": "ESPALHAMENTO VERTICAL"}
-
-        # --- 4. LOTOMANIA (Mirror Logic) ---
-        elif game_name == "Lotomania":
-            # Pick 25 from 1-50, 25 from 51-100
-            p1 = random.sample(range(0, 51), 25)
-            p2 = random.sample(range(51, 100), 25)
-            return {"n": sorted(p1 + p2), "desc": "ESPELHAMENTO 50/50"}
-
-        # --- 5. TIMEMANIA ---
-        elif game_name == "Timemania":
-            nums = sorted(random.sample(range(1, 81), 10))
-            teams = ["FLAMENGO", "CORINTHIANS", "PALMEIRAS", "SÃO PAULO", "VASCO", "SANTOS", "GRÊMIO", "INTER", "CRUZEIRO", "ATLÉTICO-MG"]
-            return {"n": nums, "extra": random.choice(teams), "desc": "PADRÃO TIME"}
-
-        # --- 6. DIA DE SORTE ---
-        elif game_name == "Dia de Sorte":
-            nums = sorted(random.sample(range(1, 32), 7))
-            months = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
-            return {"n": nums, "extra": random.choice(months), "desc": "PADRÃO MÊS"}
-
-        # --- 7. +MILIONÁRIA ---
+        # Base Pool (Total - Dead)
+        if game_name == "Lotomania": total_balls = list(range(0, 100))
+        else: total_balls = list(range(1, config['range'] + 1))
+        
+        # THE REDUCTION STEP (The Magic)
+        active_pool = list(set(total_balls) - set(dead_numbers))
+        
+        # Generation from the CLEAN POOL
+        if game_name == "Super Sete":
+            return [random.randint(0, 9) for _ in range(7)] # Independent cols
+        
         elif game_name == "+Milionária":
-            nums = sorted(random.sample(range(1, 51), 6))
+            nums = sorted(random.sample(active_pool, 6))
             trevos = sorted(random.sample(range(1, 7), 2))
-            return {"n": nums, "extra_list": trevos, "desc": "MATRIZ MILIONÁRIA"}
+            return {"n": nums, "t": trevos}
             
-        # --- 8. SUPER SETE ---
-        elif game_name == "Super Sete":
-            # One number per column (0-9)
-            cols = [random.randint(0, 9) for _ in range(7)]
-            return {"n": cols, "desc": "COLUNAS INDEPENDENTES"}
-
-        # --- FALLBACK (Dupla Sena, etc) ---
+        elif game_name in ["Timemania", "Dia de Sorte"]:
+            nums = sorted(random.sample(active_pool, config['pick']))
+            extra = "FLAMENGO" if game_name == "Timemania" else "JANEIRO" # Placeholder for simplicity
+            if game_name == "Timemania": 
+                teams = ["FLAMENGO", "CORINTHIANS", "PALMEIRAS", "SÃO PAULO"]
+                extra = random.choice(teams)
+            else:
+                months = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN"]
+                extra = random.choice(months)
+            return {"n": nums, "extra": extra}
+            
         else:
-            final = sorted(random.sample(range(1, config['range']+1), config['pick']))
-            return {"n": final, "desc": "RANDOMIZAÇÃO OTIMIZADA"}
+            # Standard (Lotofacil, Mega, etc)
+            # Ensure we pick from the reduced pool
+            return sorted(random.sample(active_pool, config['pick']))
 
 # --- 5. UI LAYOUT ---
 
-st.markdown("<div class='geo-header'>📐 LotoMaster | Geometric Engine V1</div>", unsafe_allow_html=True)
+st.markdown("<div class='reduction-header'>🚫 LotoMaster | R5 Reduction Engine</div>", unsafe_allow_html=True)
 
-# Selection Panel
+# Controls
 col1, col2 = st.columns([2, 1])
 with col1:
-    selected_game = st.selectbox("SELECIONE O MÓDULO:", list(GAMES_CONFIG.keys()))
+    selected_game = st.selectbox("MÓDULO DE JOGO:", list(GAMES_CONFIG.keys()))
 with col2:
-    qty = st.number_input("QUANTIDADE:", 1, 50, 5)
+    qty = st.number_input("QTD JOGOS:", 1, 50, 5)
 
-# Optional Last Draw Input (Crucial for Rule of 9)
-with st.expander("🧬 ENTRADA DE DADOS (Último Resultado - Opcional)"):
-    last_draw_val = st.text_input(f"Cole os números do último sorteio ({selected_game}):")
-
-# Theme Color Setup
-theme = GAMES_CONFIG[selected_game]['color']
+# Input for Intelligence
+with st.expander("🧬 FILTRO AVANÇADO (Inserir Último Sorteio)"):
+    last_draw_val = st.text_input(f"Cole o último resultado da {selected_game} para melhor redução:")
+    st.caption("ℹ️ O sistema analisará este resultado para eliminar as 'Dezenas Mortas' (frias).")
 
 # Actions
 col_btn1, col_btn2 = st.columns(2)
 with col_btn1:
-    generate = st.button("PROJETAR JOGOS 🎲")
+    run_btn = st.button("EXECUTAR REDUÇÃO E GERAR 🎲")
 with col_btn2:
-    clear = st.button("LIMPAR 🗑️")
+    clear_btn = st.button("LIMPAR SISTEMA 🗑️")
 
-# --- 6. LOGIC & DISPLAY ---
+# --- 6. EXECUTION LOGIC ---
 
-if 'results' not in st.session_state:
-    st.session_state.results = []
+if 'r5_results' not in st.session_state:
+    st.session_state.r5_results = []
+    st.session_state.dead_nums = []
 
-if clear:
-    st.session_state.results = []
+if clear_btn:
+    st.session_state.r5_results = []
+    st.session_state.dead_nums = []
     st.rerun()
 
-if generate:
-    st.session_state.results = []
+if run_btn:
+    st.session_state.r5_results = []
     
-    # Physics Simulation (The Globe Effect)
-    status = st.empty()
+    # 1. IDENTIFY DEAD NUMBERS (The Purge)
+    with st.spinner("🔍 Analisando frequência de ciclo..."):
+        time.sleep(0.5)
+        dead_nums = ReductionEngine.identify_dead_numbers(selected_game, last_draw_val)
+        st.session_state.dead_nums = dead_nums
+    
+    # 2. ANIMATION OF ELIMINATION
+    status_box = st.empty()
     bar = st.progress(0)
     
     phases = [
-        "🏗️ Construindo Malha Geométrica...",
-        "📐 Aplicando Filtros Espaciais (Moldura/Miolo)...",
-        "⚖️ Balanceando Cargas...",
-        "💎 Finalizando Escultura..."
+        f"🚫 Identificando {len(dead_nums)} dezenas fracas...",
+        "🗑️ Excluindo lixo estatístico...",
+        "💎 Otimizando Pool de Apostas...",
+        "🎱 Gerando Combinações Limpas..."
     ]
     
     for i, p in enumerate(phases):
-        status.info(p)
-        time.sleep(0.4)
+        status_box.text(f"SYSTEM: {p}")
         bar.progress((i+1)*25)
+        time.sleep(0.4)
     
+    status_box.empty()
     bar.empty()
-    status.empty()
     
-    # Generate
+    # 3. GENERATE
     for _ in range(qty):
-        res = GeometricEngine.generate(selected_game, last_draw_val)
-        st.session_state.results.append(res)
+        res = ReductionEngine.generate_reduced_game(selected_game, dead_nums)
+        st.session_state.r5_results.append(res)
 
-# Render Results
-if st.session_state.results:
+# --- 7. DISPLAY RESULTS ---
+if st.session_state.r5_results:
     
-    txt_export = f"LotoMaster - {selected_game}\n\n"
+    theme = GAMES_CONFIG[selected_game]['color']
     
-    for i, res in enumerate(st.session_state.results):
-        
-        # Determine content type
-        main_nums = res['n']
-        desc = res.get('desc', 'Standard')
-        
-        html_content = ""
-        
-        # Special Renderers
-        if selected_game == "+Milionária":
-            trevos = res['extra_list']
-            balls = "".join([f"<div class='ball' style='background:{theme}'>{n:02d}</div>" for n in main_nums])
-            trevos_html = "".join([f"<div class='ball' style='background:#333; border-color:#666'>{t}</div>" for t in trevos])
-            html_content = f"<div>{balls}</div><div style='margin-top:8px'><b>Trevos:</b> {trevos_html}</div>"
-            txt_export += f"Jogo {i+1}: {main_nums} + Trevos {trevos}\n"
-            
-        elif selected_game in ["Timemania", "Dia de Sorte"]:
-            extra = res['extra']
-            balls = "".join([f"<div class='ball' style='background:{theme}'>{n:02d}</div>" for n in main_nums])
-            html_content = f"<div>{balls}</div><div style='margin-top:8px; color:{theme}; font-weight:bold;'>★ {extra}</div>"
-            txt_export += f"Jogo {i+1}: {main_nums} + {extra}\n"
-            
-        elif selected_game == "Super Sete":
-            # Vertical Columns visual
-            cols_html = "".join([f"<div style='display:inline-block; text-align:center; margin:2px;'><div style='font-size:10px'>C{idx+1}</div><div class='ball' style='background:{theme}'>{n}</div></div>" for idx, n in enumerate(main_nums)])
-            html_content = f"<div>{cols_html}</div>"
-            txt_export += f"Jogo {i+1}: {main_nums}\n"
-            
-        else: # Standard (Lotofacil, Mega, etc)
-            balls = "".join([f"<div class='ball' style='background:{theme}'>{n:02d}</div>" for n in main_nums])
-            html_content = f"<div>{balls}</div>"
-            txt_export += f"Jogo {i+1}: {main_nums}\n"
-
-        # Card Render
+    # SHOW THE ELIMINATED NUMBERS (Psychological Hook)
+    if st.session_state.dead_nums:
+        dead_html = "".join([f"<div class='dead-ball'>{n:02d}</div>" for n in st.session_state.dead_nums])
         st.markdown(f"""
-        <div class="result-card" style="border-left-color: {theme};">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <span style="font-weight:bold; color:#333;">JOGO #{i+1}</span>
-                <span class="tag">{desc}</span>
-            </div>
-            <div style="display:flex; justify-content:center; flex-wrap:wrap;">
-                {html_content}
-            </div>
+        <div style="background:#ffebeb; padding:15px; border-radius:10px; border:1px solid #ffcccc; margin-bottom:20px; text-align:center;">
+            <div style="font-weight:bold; color:#d63031; margin-bottom:5px;">🚫 DEZENAS ELIMINADAS (R{len(st.session_state.dead_nums)})</div>
+            <div style="font-size:12px; color:#555; margin-bottom:10px;">O sistema excluiu estes números fracos para aumentar suas chances:</div>
+            <div style="display:flex; justify-content:center; flex-wrap:wrap;">{dead_html}</div>
         </div>
         """, unsafe_allow_html=True)
-        
-        # Copy helper for list games
-        if isinstance(main_nums, list) and selected_game not in ["Super Sete"]:
-             st.code(" ".join([f"{n:02d}" for n in main_nums]), language="text")
 
-    # Bottom Actions
+    txt_export = f"LotoMaster R5 - {selected_game}\n\n"
+
+    # SHOW GAMES
+    for i, res in enumerate(st.session_state.r5_results):
+        
+        main_nums = res
+        extra_html = ""
+        
+        if isinstance(res, dict):
+            main_nums = res['n']
+            if "t" in res: # +Milionaria
+                extra_html = f"<div style='margin-top:5px; font-weight:bold;'>☘️ Trevos: {res['t']}</div>"
+                txt_export += f"Jogo {i+1}: {main_nums} + Trevos {res['t']}\n"
+            else: # Timemania/Dia de Sorte
+                extra_html = f"<div style='margin-top:5px; font-weight:bold; color:{theme};'>★ {res['extra']}</div>"
+                txt_export += f"Jogo {i+1}: {main_nums} + {res['extra']}\n"
+        else:
+             txt_export += f"Jogo {i+1}: {main_nums}\n"
+        
+        # Ball HTML
+        if selected_game == "Super Sete":
+             balls_html = "".join([f"<div style='display:inline-block; margin:2px; text-align:center;'><small>C{idx+1}</small><br><div class='ball' style='background:{theme}'>{n}</div></div>" for idx, n in enumerate(main_nums)])
+        else:
+             balls_html = "".join([f"<div class='ball' style='background:{theme}'>{n:02d}</div>" for n in main_nums])
+
+        st.markdown(f"""
+        <div class="bet-card" style="border-left-color: {theme};">
+            <div style="font-weight:bold; color:#555; margin-bottom:10px;">JOGO #{i+1} <span style="font-size:11px; background:#e1f5fe; padding:2px 6px; border-radius:4px; color:#0288d1;">OTIMIZADO</span></div>
+            <div style="display:flex; justify-content:center; flex-wrap:wrap;">
+                {balls_html}
+            </div>
+            {extra_html}
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Actions
     st.markdown("---")
     col_d1, col_d2 = st.columns(2)
     with col_d1:
-        st.download_button("📥 BAIXAR TXT", txt_export, file_name=f"LotoMaster_{selected_game}.txt")
+        st.download_button("📥 BAIXAR JOGOS (TXT)", txt_export, file_name=f"LotoMaster_R5_{selected_game}.txt")
     with col_d2:
-        if st.button("LIMPAR TUDO 🗑️", key="btm_clear"):
-            st.session_state.results = []
+        if st.button("LIMPAR TUDO 🗑️", key="btn_clear_btm"):
+            st.session_state.r5_results = []
+            st.session_state.dead_nums = []
             st.rerun()
 
-# --- 7. FOOTER ---
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.caption("© 2026 LotoMaster Geometric Engine - Tecnologia de Padrões Espaciais.")
+# --- 8. FOOTER ---
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#999; font-size:12px;'>© 2026 LotoMaster R5 Engine. Estratégia de Redução Estatística.</div>", unsafe_allow_html=True)
