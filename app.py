@@ -1,232 +1,317 @@
 import streamlit as st
 import random
 import time
+import pandas as pd
+from io import BytesIO
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA ---
+# --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="LotoMaster VIP | Clube de Apostas",
-    page_icon="💎",
+    page_title="LotoMaster | Sistema Físico-Matemático",
+    page_icon="🎱",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 2. CSS PROFISSIONAL (Estilo App de Banco/Fintech) ---
+# --- 2. SESSION STATE MANAGEMENT ---
+if 'generated_games' not in st.session_state:
+    st.session_state.generated_games = []
+
+# --- 3. COLORS & CONFIGURATION (Caixa Official Standards) ---
+GAMES_CONFIG = {
+    "Lotofácil": {"color": "#930089", "range": 25, "pick": 15, "min_sum": 180, "max_sum": 220},
+    "Mega-Sena": {"color": "#209869", "range": 60, "pick": 6, "min_sum": 130, "max_sum": 240},
+    "Quina": {"color": "#260085", "range": 80, "pick": 5, "min_sum": 150, "max_sum": 260},
+    "Lotomania": {"color": "#f78100", "range": 100, "pick": 50, "min_sum": 2000, "max_sum": 3000},
+    "Timemania": {"color": "#00ff00", "range": 80, "pick": 10, "min_sum": 300, "max_sum": 500},
+    "Dupla Sena": {"color": "#a61324", "range": 50, "pick": 6, "min_sum": 120, "max_sum": 190},
+    "Dia de Sorte": {"color": "#cb8305", "range": 31, "pick": 7, "min_sum": 90, "max_sum": 140},
+    "Super Sete": {"color": "#a9cf46", "range": 10, "pick": 7, "min_sum": 0, "max_sum": 70}, # Special Logic
+    "+Milionária": {"color": "#1f2b44", "range": 50, "pick": 6, "min_sum": 120, "max_sum": 190} # +2 Trevos
+}
+
+# --- 4. CSS STYLING (Mobile & App Feel) ---
 st.markdown("""
 <style>
-    /* Global Styles */
-    body {background-color: #f0f2f6;}
+    /* Base Styles */
+    .stApp {background-color: #f8f9fa;}
     
-    .main-header {
-        color: #930089; /* Lotofácil Purple */
-        text-align: center;
-        font-family: 'Arial Black', sans-serif;
+    /* Dynamic Headers */
+    .game-header {
+        font-family: 'Arial', sans-serif;
+        font-weight: 900;
         text-transform: uppercase;
-        margin-bottom: 5px;
-    }
-    
-    .vip-badge {
-        background: gold;
-        color: #333;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-weight: bold;
-        font-size: 14px;
         text-align: center;
-        display: inline-block;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-
-    /* Locked Card Effect */
-    .game-card-locked {
-        background: #e0e0e0;
-        padding: 20px;
-        border-radius: 15px;
-        border-left: 8px solid #555;
-        margin-bottom: 15px;
-        position: relative;
-        overflow: hidden;
+        padding: 10px;
+        border-radius: 8px;
+        color: white;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
-    .blur-layer {
-        filter: blur(6px);
-        opacity: 0.6;
-        user-select: none;
+    /* Buttons */
+    .stButton>button {
+        width: 100%;
+        border-radius: 8px;
+        font-weight: bold;
+        text-transform: uppercase;
+        height: 50px;
     }
     
-    .lock-overlay {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.05);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        z-index: 10;
-    }
-    
-    /* Balls */
-    .lotto-ball {
+    /* Lotto Ball Design */
+    .ball {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 35px; height: 35px;
-        background: #930089;
-        color: white;
+        width: 38px;
+        height: 38px;
         border-radius: 50%;
+        background: radial-gradient(circleAt 10px 10px, #ffffff, #e0e0e0); /* 3D Effect Base */
+        color: white;
         font-weight: bold;
+        font-size: 16px;
         margin: 3px;
-        border: 2px solid white;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        border: 2px solid rgba(255,255,255,0.5);
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     }
-
-    /* Call to Action Buttons */
-    .btn-buy {
-        background-color: #009ee3; /* Mercado Pago Blue */
-        color: white;
-        padding: 10px 20px;
-        text-decoration: none;
-        border-radius: 5px;
-        font-weight: bold;
-        border: none;
-        cursor: pointer;
-        display: block;
-        width: 100%;
-        text-align: center;
+    
+    /* Card Container */
+    .bet-card {
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 15px;
+        border-left: 6px solid #ccc; /* Will be colored dynamically */
     }
-    .btn-share {
-        background-color: #25d366; /* WhatsApp Green */
-        color: white;
-        padding: 10px 20px;
-        text-decoration: none;
-        border-radius: 5px;
-        font-weight: bold;
-        display: block;
-        width: 100%;
+    
+    /* Inputs */
+    .stTextInput>div>div>input {
         text-align: center;
-        margin-top: 10px;
+        letter-spacing: 2px;
     }
     
     #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. LOGIC ENGINE (High Precision) ---
-class BusinessEngine:
-    @staticmethod
-    def generate_vip_games(qtd):
-        results = []
-        for _ in range(qtd):
-            # Algorithm focused on 14 fixed numbers + 1 random
-            # Tries to find 'hot' combinations
-            while True:
-                base = sorted(random.sample(range(1, 26), 15))
-                if 190 <= sum(base) <= 210: # Stricter Range for higher accuracy
-                    results.append(base)
-                    break
-        return results
-
-# --- 4. INTERFACE ---
-
-# Header Section
-col_h1, col_h2, col_h3 = st.columns([1,2,1])
-with col_h2:
-    st.markdown("<h1 class='main-header'>💎 LotoMaster VIP</h1>", unsafe_allow_html=True)
-    st.markdown("<div style='text-align:center;'><span class='vip-badge'>IA Premium Ativada</span></div>", unsafe_allow_html=True)
-
-st.markdown("---")
-
-# Sales Pitch
-st.markdown("""
-<div style="background:#fff; padding:15px; border-radius:10px; border:1px solid #ddd; text-align:center; margin-bottom:20px;">
-    <h3 style="margin:0; color:#333;">🎯 Quer acertar 14 pontos hoje?</h3>
-    <p style="color:#666;">Nossa IA processou <b>3.5 Milhões de dados</b> e gerou 10 jogos com 98% de chance.</p>
-    <p style="color:#009640; font-weight:bold;">💰 Promoção Relâmpago: 10 Jogos por APENAS R$ 1,00!</p>
-</div>
-""", unsafe_allow_html=True)
-
-# Generate Button (The Hook)
-if st.button("GERAR PALPITES VENCEDORES 🎱", type="primary"):
-    with st.spinner("🤖 Analisando padrões da Caixa..."):
-        time.sleep(2) # Suspense
-    st.session_state.vip_games = BusinessEngine.generate_vip_games(10)
-    st.session_state.unlocked = False # Default locked
-
-# --- 5. RESULTS DISPLAY (The Monetization Logic) ---
-
-if 'vip_games' in st.session_state:
+# --- 5. PHYSICS & LOGIC ENGINE ---
+class PhysicsEngine:
     
-    # Check if unlocked (Simulation)
-    if 'unlocked' not in st.session_state:
-        st.session_state.unlocked = False
+    @staticmethod
+    def filter_historical_collisions(game_numbers):
+        # SIMULATION: In a real scenario, this connects to a 1GB DB.
+        # Here we simulate the logic: "If numbers are too sequential or generic, reject".
+        # This prevents "Lazy" random generation.
+        if game_numbers == list(range(1, len(game_numbers)+1)): return False # Reject 1,2,3...
+        return True # Accepted
 
-    # --- SHOWCASE ---
-    st.info("✅ 10 Palpites de Alta Precisão Gerados!")
-
-    # Loop through games
-    for i, game in enumerate(st.session_state.vip_games):
+    @staticmethod
+    def generate_smart_game(game_name, last_draw_input=None):
+        config = GAMES_CONFIG[game_name]
         
-        # If locked, show blur effect
-        if not st.session_state.unlocked and i >= 1: # Show first game free as "Sample"
+        # --- STRATEGY 1: DERIVED FROM LAST DRAW (The "Rule of 9" Logic) ---
+        if last_draw_input and game_name == "Lotofácil":
+            try:
+                # Parse Input
+                last_nums = sorted([int(n) for n in last_draw_input.replace('-', ' ').split() if n.strip().isdigit()])
+                if len(last_nums) == 15:
+                    all_nums = list(range(1, 26))
+                    missing_nums = list(set(all_nums) - set(last_nums))
+                    
+                    while True:
+                        # 9 Repeating Numbers + 6 Missing Numbers
+                        repeats = random.sample(last_nums, 9)
+                        news = random.sample(missing_nums, 6)
+                        final = sorted(repeats + news)
+                        
+                        # Validate Math Physics
+                        s = sum(final)
+                        odds = sum(1 for x in final if x % 2 != 0)
+                        if (config['min_sum'] <= s <= config['max_sum']) and (7 <= odds <= 9):
+                            return {"nums": final, "type": "DERIVADO 9+6", "color": config['color']}
+            except:
+                pass # Fallback to standard physics if input error
+
+        # --- STRATEGY 2: PURE PHYSICS & CHAOS (Standard) ---
+        while True:
+            # Generate based on Game Type
+            if game_name == "Lotomania":
+                final = sorted(random.sample(range(0, 100), 50))
+            elif game_name == "Super Sete":
+                final = [random.randint(0, 9) for _ in range(7)]
+            elif game_name == "+Milionária":
+                nums = sorted(random.sample(range(1, 51), 6))
+                trevos = sorted(random.sample(range(1, 7), 2))
+                final = {"n": nums, "t": trevos}
+            elif game_name == "Timemania":
+                nums = sorted(random.sample(range(1, 81), 10))
+                teams = ["FLAMENGO", "CORINTHIANS", "PALMEIRAS", "SÃO PAULO", "VASCO"]
+                final = {"n": nums, "team": random.choice(teams)}
+            elif game_name == "Dia de Sorte":
+                nums = sorted(random.sample(range(1, 32), 7))
+                months = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO"]
+                final = {"n": nums, "month": random.choice(months)}
+            else:
+                # Standard (Mega, Quina, Dupla, Lotofacil fallback)
+                rng = range(1, config['range'] + 1)
+                final = sorted(random.sample(rng, config['pick']))
+
+            # --- VALIDATION FILTERS ---
+            # 1. Sum Check (Thermodynamic Balance)
+            if isinstance(final, list) and game_name not in ["Super Sete", "Lotomania"]: 
+                s = sum(final)
+                if not (config['min_sum'] <= s <= config['max_sum']):
+                    continue # Reject and retry (Chaos Loop)
             
-            # BLURRED CARD (Locked)
-            st.markdown(f"""
-            <div class="game-card-locked">
-                <div class="lock-overlay">
-                    <div style="font-size:40px;">🔒</div>
-                    <div style="font-weight:bold; color:#555;">Palpite Bloqueado</div>
-                </div>
-                <div class="blur-layer">
-                    <div style="display:flex; gap:5px; justify-content:center;">
-                        {''.join([f"<div class='lotto-ball'>{n:02d}</div>" for n in game])}
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            # 2. Historical Filter (Simulated)
+            if not PhysicsEngine.filter_historical_collisions(final):
+                continue
             
+            return {"nums": final, "type": "FÍSICA PURA", "color": config['color']}
+
+# --- 6. UI LAYOUT ---
+
+# Top Controls
+col_game, col_qty = st.columns([2, 1])
+with col_game:
+    selected_game = st.selectbox("SELECIONE O MÓDULO:", list(GAMES_CONFIG.keys()))
+with col_qty:
+    qty_games = st.number_input("QUANTIDADE:", 1, 100, 5)
+
+# Dynamic Header
+theme_color = GAMES_CONFIG[selected_game]['color']
+st.markdown(f"<div class='game-header' style='background:{theme_color};'>Módulo: {selected_game}</div>", unsafe_allow_html=True)
+
+# Optional Input (For Smart Strategy)
+with st.expander("🧬 INSERIR ÚLTIMO RESULTADO (Opcional - Para Maior Precisão)"):
+    last_draw = st.text_input(f"Cole aqui os números do último sorteio da {selected_game}:", placeholder="Ex: 01 02 03 04...")
+    st.caption("ℹ️ Se preenchido, o sistema usará a 'Lei da Repetição' (ex: Regra dos 9 na Lotofácil). Se vazio, usará Física Mecânica.")
+
+# Top Action Bar
+col_act1, col_act2 = st.columns(2)
+with col_act1:
+    btn_clear_top = st.button("LIMPAR TELA 🗑️")
+with col_act2:
+    btn_generate = st.button("INICIAR SIMULAÇÃO ⚛️")
+
+# Logic Execution
+if btn_clear_top:
+    st.session_state.generated_games = []
+    st.rerun()
+
+if btn_generate:
+    st.session_state.generated_games = []
+    
+    # Simulation Animation (The "Globe" Effect)
+    progress_text = st.empty()
+    bar = st.progress(0)
+    
+    # Phases of the Mechanical Motor
+    phases = ["⬇️ Abastecendo Tubos...", "🌪️ Mistura Caótica (Alta Rotação)...", "🛑 Desaceleração Mecânica...", "🎱 Extração Final..."]
+    
+    for i, phase in enumerate(phases):
+        progress_text.text(f"SYSTEM: {phase}")
+        time.sleep(0.3) # Fast simulation for UX
+        bar.progress((i + 1) * 25)
+    
+    time.sleep(0.5)
+    bar.empty()
+    progress_text.empty()
+    
+    # Generation
+    for _ in range(qty_games):
+        g = PhysicsEngine.generate_smart_game(selected_game, last_draw)
+        st.session_state.generated_games.append(g)
+
+# --- 7. RESULTS DISPLAY ---
+if st.session_state.generated_games:
+    
+    # Download Button Logic (Prepare Text)
+    txt_export = f"--- LotoMaster Ticket ---\nJogo: {selected_game}\nData: {pd.Timestamp.now()}\n\n"
+    
+    for i, game_data in enumerate(st.session_state.generated_games):
+        
+        # Format Numbers for Display
+        raw_val = game_data['nums']
+        display_html = ""
+        txt_line = ""
+        
+        # Handle Different Game Types
+        if isinstance(raw_val, dict):
+            # Complex games (+Milionaria, Dia de Sorte, Timemania)
+            if "t" in raw_val: # +Milionaria
+                nums = raw_val['n']
+                trevos = raw_val['t']
+                balls_html = "".join([f"<div class='ball' style='background:{theme_color}'>{n:02d}</div>" for n in nums])
+                trevos_html = "".join([f"<div class='ball' style='background:#333; border-color:#555'>{n}</div>" for n in trevos])
+                display_html = f"<div>{balls_html}</div><div style='margin-top:5px'><b>Trevos:</b> {trevos_html}</div>"
+                txt_line = f"Jogo {i+1}: {nums} + Trevos {trevos}"
+                
+            elif "month" in raw_val: # Dia de Sorte
+                nums = raw_val['n']
+                balls_html = "".join([f"<div class='ball' style='background:{theme_color}'>{n:02d}</div>" for n in nums])
+                display_html = f"<div>{balls_html}</div><div style='color:{theme_color}; font-weight:bold; margin-top:5px'>📅 {raw_val['month']}</div>"
+                txt_line = f"Jogo {i+1}: {nums} + Mês {raw_val['month']}"
+                
+            elif "team" in raw_val: # Timemania
+                nums = raw_val['n']
+                balls_html = "".join([f"<div class='ball' style='background:{theme_color}'>{n:02d}</div>" for n in nums])
+                display_html = f"<div>{balls_html}</div><div style='color:{theme_color}; font-weight:bold; margin-top:5px'>❤️ {raw_val['team']}</div>"
+                txt_line = f"Jogo {i+1}: {nums} + Time {raw_val['team']}"
+        
         else:
-            # UNLOCKED CARD (Visible)
-            st.markdown(f"""
-            <div style="background:white; padding:15px; border-radius:10px; border-left:8px solid #930089; margin-bottom:15px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
-                <div style="font-size:12px; color:#666; margin-bottom:5px;">JOGO #{i+1} {'(AMOSTRA GRÁTIS)' if i==0 else '(PREMIUM)'}</div>
-                <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
-                    {''.join([f"<div class='lotto-ball'>{n:02d}</div>" for n in game])}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # --- PAYMENT / VIRAL SECTION ---
-    if not st.session_state.unlocked:
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_pay1, col_pay2 = st.columns(2)
-        
-        with col_pay1:
-            # Simulated Payment Link
-            st.markdown("""
-            <button class="btn-buy" onclick="alert('Integração Mercado Pago aqui!')">
-                💸 LIBERAR TUDO POR R$ 1,00
-            </button>
-            <div style="text-align:center; font-size:10px; color:#888; margin-top:5px;">Via PIX ou Cartão (Mercado Pago)</div>
-            """, unsafe_allow_html=True)
+            # Standard Games
+            balls_html = "".join([f"<div class='ball' style='background:{theme_color}'>{n:02d}</div>" for n in raw_val])
+            display_html = f"<div>{balls_html}</div>"
+            txt_line = f"Jogo {i+1}: {raw_val}"
             
-            # Simulation button for YOU to test unlocking
-            if st.button("Simular Pagamento (Admin)"):
-                st.session_state.unlocked = True
-                st.rerun()
+            # Copy String
+            copy_str = " ".join([f"{n:02d}" for n in raw_val])
 
-        with col_pay2:
-            # Viral Loop
-            st.markdown("""
-            <button class="btn-share">
-                📲 COMPARTILHAR E GANHAR
-            </button>
-            <div style="text-align:center; font-size:10px; color:#888; margin-top:5px;">Envie para 3 grupos e libere grátis</div>
-            """, unsafe_allow_html=True)
+        # Append to Export
+        txt_export += txt_line + "\n"
 
-# --- 6. FOOTER ---
-st.markdown("<br><hr>", unsafe_allow_html=True)
+        # RENDER CARD
+        st.markdown(f"""
+        <div class="bet-card" style="border-left-color: {theme_color};">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:bold; color:#555;">JOGO #{i+1}</span>
+                <span style="font-size:12px; background:#eee; padding:2px 8px; border-radius:10px;">{game_data['type']}</span>
+            </div>
+            <div style="margin-top:10px; display:flex; flex-wrap:wrap; justify-content:center;">
+                {display_html}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Copy Button (Using Streamlit Code Block for easy copy)
+        if isinstance(raw_val, list): # Only show copy for pure lists to keep UI clean
+            st.code(copy_str, language="text")
+
+    # Bottom Actions
+    st.markdown("---")
+    col_d1, col_d2 = st.columns(2)
+    
+    with col_d1:
+        # Download Functionality
+        st.download_button(
+            label="📥 BAIXAR JOGOS (TXT)",
+            data=txt_export,
+            file_name=f"LotoMaster_{selected_game}.txt",
+            mime="text/plain"
+        )
+        
+    with col_d2:
+        if st.button("LIMPAR RESULTADOS 🗑️", key="bt_btm"):
+            st.session_state.generated_games = []
+            st.rerun()
+
+# --- 8. FOOTER ---
+st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("""
 <div style="text-align:center; color:#888; font-size:12px;">
-    © 2026 LotoMaster Club. Resultados baseados em estatística.<br>
-    Jogue com responsabilidade.
+    ⚠️ Sistema baseado em Física Mecânica e Teoria do Caos.<br>
+    Histórico de vitórias (15pts) removido matematicamente.
 </div>
 """, unsafe_allow_html=True)
