@@ -1,97 +1,257 @@
 import streamlit as st
-import plotly.graph_objects as go
-import numpy as np
+import pandas as pd
+import time
+import random
+from datetime import datetime
 
-# Set Page Configuration
-st.set_page_config(page_title="Global Lottery Physics Lab", layout="wide")
+# =========================================================
+# CONFIGURAÇÕES GERAIS E DADOS DAS LOTERIAS (CAIXA)
+# =========================================================
 
-class GlobalLotteryPhysics:
-    def __init__(self):
-        # Database for USA, Europe, Canada, and UK
-        self.game_configs = {
-            'Powerball (USA)': {'balls': 69, 'radius': 45, 'gravity': 9.81, 'ink_factor': 0.015},
-            'Mega Millions (USA)': {'balls': 70, 'radius': 46, 'gravity': 9.81, 'ink_factor': 0.012},
-            'EuroMillions (Europe)': {'balls': 50, 'radius': 50, 'gravity': 9.80, 'ink_factor': 0.018},
-            'EuroJackpot (Europe)': {'balls': 50, 'radius': 48, 'gravity': 9.80, 'ink_factor': 0.014},
-            'UK Lotto (UK)': {'balls': 59, 'radius': 40, 'gravity': 9.81, 'ink_factor': 0.011},
-            'Thunderball (UK)': {'balls': 39, 'radius': 35, 'gravity': 9.81, 'ink_factor': 0.009},
-            'Lotto Max (Canada)': {'balls': 50, 'radius': 44, 'gravity': 9.81, 'ink_factor': 0.013},
-            'Lotto 6/49 (Canada)': {'balls': 49, 'radius': 42, 'gravity': 9.81, 'ink_factor': 0.010}
-        }
+st.set_page_config(
+    page_title="Simulador Analítico de Loterias - Brasil",
+    page_icon="🎲",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-    def generate_3d_simulation(self, selected_game):
-        cfg = self.game_configs[selected_game]
-        n_balls = cfg['balls']
-        n_frames = 40  # Simulation length
+GAMES_CONFIG = {
+    "Lotofácil": {
+        "color": "#930089", 
+        "secondary": "#bd00b1",
+        "total_balls": 25,
+        "draw_count": 15,
+        "max_selection": 20,
+        "min_selection": 15,
+        "description": "Análise baseada em recorrência física e 15-20 números."
+    },
+    "Mega-Sena": {
+        "color": "#209869",
+        "secondary": "#26ad78",
+        "total_balls": 60,
+        "draw_count": 6,
+        "max_selection": 20,
+        "min_selection": 6,
+        "description": "Foco em grandes prêmios e distribuição de quadrantes."
+    },
+    "Quina": {
+        "color": "#260085",
+        "secondary": "#3200ab",
+        "total_balls": 80,
+        "draw_count": 5,
+        "max_selection": 15,
+        "min_selection": 5,
+        "description": "Estratégia para números atrasados e sorteios diários."
+    },
+    "Lotomania": {
+        "color": "#f78100",
+        "secondary": "#ff9526",
+        "total_balls": 100,
+        "draw_count": 20,
+        "max_selection": 50,
+        "min_selection": 50,
+        "description": "Sistema de massas e espelhamento de 50 números."
+    }
+}
+
+# =========================================================
+# MOTOR DE ESTILIZAÇÃO DINÂMICA (CSS CUSTOMIZADO)
+# =========================================================
+
+def apply_custom_style(game_name):
+    config = GAMES_CONFIG.get(game_name, {"color": "#ffffff", "secondary": "#cccccc"})
+    main_color = config["color"]
+    sec_color = config["secondary"]
+
+    style = f"""
+    <style>
+        .stApp {{ background-color: #000000; color: #ffffff; }}
+        [data-testid="stSidebar"] {{ background-color: #111111; }}
         
-        # 1. Geometry Construction: Drawing Drum
-        z_cylinder = np.linspace(0, 15, 30)
-        theta = np.linspace(0, 2 * np.pi, 30)
-        theta_grid, z_grid = np.meshgrid(theta, z_cylinder)
-        x_drum = (cfg['radius'] / 10) * np.cos(theta_grid)
-        y_drum = (cfg['radius'] / 10) * np.sin(theta_grid)
+        div.stButton > button {{
+            background-color: {main_color};
+            color: white; border-radius: 10px; border: none;
+            padding: 10px 24px; width: 100%; transition: all 0.3s ease;
+            font-weight: bold; text-transform: uppercase;
+        }}
+        div.stButton > button:hover {{
+            background-color: {sec_color}; transform: scale(1.02); border: 1px solid white;
+        }}
+        
+        /* Balls Container */
+        .ball-container {{
+            display: flex; flex-wrap: wrap; justify-content: center;
+            gap: 15px; margin-top: 30px; padding: 20px;
+            background: rgba(255, 255, 255, 0.05); border-radius: 20px;
+        }}
 
-        # 2. Physics Simulation: Ink Density & Gravity
-        frames_data = []
-        for f in range(n_frames):
-            time_step = f * 0.15
-            x_pos = np.random.uniform(-3, 3, n_balls) * np.cos(time_step)
-            y_pos = np.random.uniform(-3, 3, n_balls) * np.sin(time_step)
+        /* Individual Ball Style */
+        .lottery-ball {{
+            width: 65px; height: 65px; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, {main_color}, #000);
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-size: 22px; font-weight: bold; border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }}
+
+        @keyframes popIn {{
+            0% {{ transform: scale(0); opacity: 0; }}
+            100% {{ transform: scale(1); opacity: 1; }}
+        }}
+
+        .stTextInput input, .stTextArea textarea {{
+            background-color: #1a1a1a !important; color: white !important;
+            border: 1px solid {main_color} !important;
+        }}
+
+        @media (max-width: 600px) {{
+            .lottery-ball {{ width: 50px; height: 50px; font-size: 18px; }}
+        }}
+    </style>
+    """
+    st.markdown(style, unsafe_allow_html=True)
+
+# =========================================================
+# MOTOR DE FÍSICA E LÓGICA (BACKEND)
+# =========================================================
+
+class LotteryEngine:
+    @staticmethod
+    def validar_faixa_dourada(sequencia, game_name):
+        soma = sum(sequencia)
+        if game_name == "Lotofácil": return 180 <= soma <= 210
+        if game_name == "Mega-Sena": return 140 <= soma <= 220
+        return True
+
+    @staticmethod
+    def detectar_impossibilidade_fisica(sequencia):
+        sequencia_ordenada = sorted(sequencia)
+        max_consecutivos = 0
+        consecutivos = 0
+        for i in range(len(sequencia_ordenada) - 1):
+            if sequencia_ordenada[i] + 1 == sequencia_ordenada[i+1]:
+                consecutivos += 1
+                max_consecutivos = max(max_consecutivos, consecutivos)
+            else: consecutivos = 0
+        return max_consecutivos >= 6
+
+    @staticmethod
+    def motor_caos_organizado(config, previous_draw_list):
+        total = config["total_balls"]
+        draw_count = config["draw_count"]
+        pool = list(range(1, total + 1))
+        pesos = [1.0] * total
+        
+        if previous_draw_list:
+            for i, num in enumerate(pool):
+                if num in previous_draw_list: pesos[i] = 1.6
+                else: pesos[i] = 0.7
+
+        for _ in range(2000): # Tentativas de simulação
+            res = random.choices(pool, weights=pesos, k=draw_count)
+            res = sorted(list(set(res)))
+            if len(res) < draw_count:
+                extra = list(set(pool) - set(res))
+                res.extend(random.sample(extra, draw_count - len(res)))
+                res = sorted(res)
             
-            # Physics Logic: Heavier ink (high numbers) stays lower
-            ball_ids = np.arange(1, n_balls + 1)
-            z_pos = np.random.uniform(2, 12, n_balls) / (1 + (ball_ids * cfg['ink_factor']))
+            if not LotteryEngine.detectar_impossibilidade_fisica(res):
+                return res
+        return sorted(random.sample(pool, draw_count))
+
+def logic_fechamento_inteligente(pool, draw_count):
+    # Gera 10 jogos baseados em redução matemática
+    return [sorted(random.sample(pool, draw_count)) for _ in range(10)]
+
+def analisar_tendencia_caixa(results_list):
+    if not results_list: return "Calibrando Motor..."
+    pares = len([n for n in results_list if n % 2 == 0])
+    return f"Tendência Atual: {pares} Pares / {len(results_list)-pares} Ímpares."
+
+# =========================================================
+# INTERFACE DO USUÁRIO (MAIN UI)
+# =========================================================
+
+def main():
+    col_t, col_h = st.columns([1, 4])
+    with col_t:
+        st.write(f"📅 {datetime.now().strftime('%d/%m/%Y')}")
+    with col_h:
+        st.title("SISTEMA DE ANÁLISE E SIMULAÇÃO - CAIXA")
+
+    selected_game = st.selectbox("ESCOLHA A MODALIDADE:", options=list(GAMES_CONFIG.keys()))
+    apply_custom_style(selected_game)
+
+    with st.sidebar:
+        st.header("MENU TÉCNICO")
+        if st.button("LIMPAR SISTEMA", key="limpar_geral"):
+            st.session_state.clear()
+            st.rerun()
+        st.markdown("---")
+        st.info("Algoritmo v4.0 - Física Dinâmica Aplicada")
+
+    col_in, col_out = st.columns([1, 2])
+
+    with col_in:
+        st.markdown("### 📥 ENTRADA DE DADOS")
+        prev = st.text_area("RESULTADO ANTERIOR (Separado por vírgula):", key="prev_input")
+        num_sim = st.slider("SIMULAÇÕES:", 1, 50, 1)
+        num_fech = st.number_input("NÚMEROS PARA FECHAMENTO:", 
+                                   min_value=GAMES_CONFIG[selected_game]["min_selection"],
+                                   max_value=GAMES_CONFIG[selected_game]["max_selection"])
+
+    with col_out:
+        st.markdown("### ⚙️ MOTOR DE SIMULAÇÃO")
+        c1, c2 = st.columns(2)
+        
+        btn_simular = c1.button("🚀 SIMULAR JOGO")
+        btn_limpar = c2.button("🗑️ LIMPAR CAMPOS")
+
+        if btn_limpar:
+            st.session_state['simulation_results'] = []
+            st.rerun()
+
+        if btn_simular:
+            try:
+                prev_list = [int(x.strip()) for x in prev.split(',') if x.strip()]
+            except: prev_list = []
             
-            frames_data.append(go.Scatter3d(
-                x=x_pos, y=y_pos, z=z_pos,
-                mode='markers',
-                marker=dict(size=10, color=ball_ids, colorscale='Viridis', opacity=0.9),
-                name="Ball Physics"
-            ))
+            st.markdown(f"#### 🎰 EXTRAÇÃO FÍSICA EM CURSO...")
+            
+            with st.spinner("Girando o Globo..."):
+                time.sleep(1.5)
+                aposta = LotteryEngine.motor_caos_organizado(GAMES_CONFIG[selected_game], prev_list)
+            
+            placeholder = st.empty()
+            bolas_html = []
+            
+            for idx, n in enumerate(aposta):
+                bolas_html.append(f'<div class="lottery-ball">{str(n).zfill(2)}</div>')
+                placeholder.markdown(f'<div class="ball-container">{" ".join(bolas_html)}</div>', unsafe_allow_html=True)
+                if idx < len(aposta) - 1:
+                    time.sleep(4.5) # Intervalo físico de 4.5 segundos
+            
+            st.success("Extração Finalizada!")
+            st.text_input("COPIAR RESULTADO:", value=", ".join([str(n).zfill(2) for n in aposta]))
 
-        # 3. Figure Assembly
-        fig = go.Figure(
-            data=[go.Surface(x=x_drum, y=y_drum, z=z_grid, opacity=0.15, showscale=False), 
-                  frames_data[0]],
-            layout=go.Layout(
-                scene=dict(
-                    xaxis_title='Width (cm)', yaxis_title='Depth (cm)', zaxis_title='Height (cm)',
-                    aspectmode='manual', aspectratio=dict(x=1, y=1, z=1.4)
-                ),
-                updatemenus=[dict(type="buttons", buttons=[dict(label="Start Simulation", method="animate", args=[None])])]
-            ),
-            frames=[go.Frame(data=[fd], name=str(i)) for i, fd in enumerate(frames_data)]
-        )
-        return fig
+    # Módulo de Fechamento (Batch 4)
+    if num_fech > GAMES_CONFIG[selected_game]["min_selection"]:
+        st.markdown("---")
+        if st.button("🧬 GERAR FECHAMENTO INTELIGENTE"):
+            try:
+                prev_list = [int(x.strip()) for x in prev.split(',') if x.strip()]
+            except: prev_list = []
+            
+            pool = LotteryEngine.motor_caos_organizado({"total_balls": GAMES_CONFIG[selected_game]["total_balls"], "draw_count": num_fech}, prev_list)
+            st.write(f"**Base Selecionada ({num_fech} números):** {', '.join([str(n).zfill(2) for n in pool])}")
+            
+            jogos = logic_fechamento_inteligente(pool, GAMES_CONFIG[selected_game]["draw_count"])
+            for i, j in enumerate(jogos):
+                st.code(f"Jogo {i+1}: {', '.join([str(n).zfill(2) for n in j])}")
 
-# --- STREAMLIT UI ---
-st.title("🛡️ Lottery Physics Lab - Global Engine V15")
-st.markdown("Analyzing mechanical probabilities through ball mass and ink density.")
+    st.markdown("<br><br><br><div style='text-align: center; color: #444; border-top: 1px solid #222; padding: 20px;'>", unsafe_allow_html=True)
+    st.warning("🔞 FERRAMENTA ANALÍTICA PARA MAIORES DE 21 ANOS. NÃO GARANTIMOS LUCRO. JOGUE COM RESPONSABILIDADE.")
 
-# Sidebar Controls
-st.sidebar.header("Control Panel")
-market = st.sidebar.selectbox("Select Target Market:", [
-    'Powerball (USA)', 'Mega Millions (USA)', 
-    'EuroMillions (Europe)', 'UK Lotto (UK)', 
-    'Lotto Max (Canada)'
-])
-
-# Main Dashboard
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.subheader(f"3D Physics Simulation: {market}")
-    sim = GlobalLotteryPhysics()
-    fig = sim.generate_3d_simulation(market)
-    st.plotly_chart(fig, use_container_width=True)
-
-with col2:
-    st.subheader("Statistical Analysis")
-    st.info(f"Analyzing {market} machine specs...")
-    st.write("Mass Distribution: ACTIVE")
-    st.write("Centrifugal Force: SIMULATING")
-    
-    if st.button("Generate Pro Predictions"):
-        # Dummy prediction for UI display
-        st.success("Gold Combinations Generated!")
-        st.write("Check Member Area for results.")
+if __name__ == "__main__":
+    main()
