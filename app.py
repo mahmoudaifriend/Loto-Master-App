@@ -1,270 +1,249 @@
-import streamlit as st
-import time
-import random
-import base64
-import os
-from datetime import datetime, timedelta
-import pandas as pd
+// =====================================================
+// TOTOLOTO ALGORITMIA – Lotofácil Engine (PRO+)
+// Hot/Cold Logic + Copy Caixa + Circular Engine (25 balls)
+// =====================================================
 
-# --- 1. CONFIGURAÇÕES BÁSICAS DO SISTEMA ---
-st.set_page_config(
-    page_title="Totoloto Algoritmia",
-    page_icon="🎰",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+import React, { useEffect, useState } from "react";
 
-# --- 2. PROCESSAMENTO DA IMAGEM CENTRAL (GLOBO) ---
-def get_base64_img(path):
-    """Converte a imagem local em Base64 para evitar links quebrados."""
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    return None
+// =====================================================
+// CONFIG – LOTOFÁCIL
+// =====================================================
+const NUMBERS = Array.from({ length: 25 }, (_, i) => i + 1);
+const DRAW_DAYS = [2, 4, 6]; // Terça, Quinta, Sábado
 
-img_b64 = get_base64_img("globo.png")
-globo_src = f"data:image/png;base64,{img_b64}" if img_b64 else ""
+// =====================================================
+// API – Último sorteio oficial (Caixa)
+// =====================================================
+async function fetchLastDraw() {
+  try {
+    const res = await fetch("https://loteriascaixa-api.herokuapp.com/api/lotofacil/latest");
+    const data = await res.json();
+    return data.dezenas.map(n => parseInt(n, 10));
+  } catch {
+    return null;
+  }
+}
 
-# --- 3. LÓGICA DO CONTADOR REGRESSIVO (COUNTDOWN) ---
-def get_countdown():
-    """Calcula o tempo restante para o próximo sorteio da Lotofácil (20:00)."""
-    now = datetime.now()
-    
-    # Domingo não há sorteios oficiais
-    if now.weekday() == 6:
-        return "00:00:00", "HOJE É DOMINGO - SEM SORTEIOS"
-    
-    target = now.replace(hour=20, minute=0, second=0, microsecond=0)
-    
-    # Se já passou das 20h, o alvo é o dia seguinte
-    if now > target:
-        target += timedelta(days=1)
-        if target.weekday() == 6: # Pular domingo se amanhã for domingo
-            target += timedelta(days=1)
-            
-    delta = target - now
-    hours, remainder = divmod(delta.seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d}", "TEMPO PARA O PRÓXIMO SORTEIO"
+// =====================================================
+// UTILS
+// =====================================================
+function getNextDrawCountdown() {
+  const now = new Date();
+  if ([0, 1].includes(now.getDay())) return null;
+  let next = new Date(now);
+  while (!DRAW_DAYS.includes(next.getDay())) next.setDate(next.getDate() + 1);
+  next.setHours(20, 0, 0, 0);
+  const diff = next.getTime() - now.getTime();
+  return diff > 0 ? diff : null;
+}
 
-# --- 4. INTERFACE E DESIGN DE LUXO (CSS CUSTOMIZADO) ---
-def inject_luxury_design():
-    countdown_time, status = get_countdown()
-    primary_color = "#930089" # Roxo Padrão Lotofácil
-    gold_color = "#FFD700"    # Dourado Elite
-    
-    css = f"""
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@600&display=swap');
-        
-        .stApp {{
-            background: radial-gradient(circle at center, #2e002b 0%, #000 100%);
-            font-family: 'Rajdhani', sans-serif;
-            color: white;
-        }}
+function formatTime(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
 
-        /* Container do Contador Regressivo */
-        .countdown-container {{
-            text-align: center; padding: 15px; border: 1px solid {primary_color};
-            border-radius: 12px; background: rgba(0,0,0,0.6); margin-bottom: 25px;
-            box-shadow: 0 0 15px rgba(147, 0, 137, 0.3);
-        }}
-        .timer-val {{ font-family: 'Orbitron'; color: {gold_color}; font-size: 2.2rem; text-shadow: 0 0 10px {gold_color}; }}
-        .timer-label {{ font-size: 0.9rem; color: #aaa; letter-spacing: 2px; text-transform: uppercase; }}
+function shuffle(arr) {
+  return [...arr].sort(() => Math.random() - 0.5);
+}
 
-        /* Área do Motor Central (Globo) */
-        .engine-area {{
-            display: flex; justify-content: center; align-items: center;
-            position: relative; width: 320px; height: 320px; margin: 0 auto;
-        }}
-        .globo-main {{
-            width: 100%; z-index: 10; filter: drop-shadow(0 0 20px {primary_color});
-        }}
-        .energy-glow {{
-            position: absolute; width: 260px; height: 260px;
-            border: 4px dashed {gold_color}; border-radius: 50%;
-            animation: rotateEngine 2s linear infinite; z-index: 5;
-            box-shadow: 0 0 40px {primary_color};
-        }}
-        @keyframes rotateEngine {{ from {{ transform: rotate(0deg); }} to {{ transform: rotate(360deg); }} }}
+function countHits(bet, draw) {
+  return bet.filter(n => n !== -1 && draw.includes(n)).length;
+}
 
-        /* Grade de Bolas e Responsividade Móvel */
-        .results-grid {{
-            display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
-            padding: 25px; background: rgba(255,255,255,0.04); border-radius: 25px;
-            margin-top: 15px;
-        }}
-        .ball-3d {{
-            width: 55px; height: 55px; border-radius: 50%;
-            background: radial-gradient(circle at 35% 35%, #ffffff 0%, {primary_color} 55%, #000000 100%);
-            display: inline-flex; align-items: center; justify-content: center;
-            color: white; font-family: 'Orbitron'; font-size: 1.2rem; font-weight: bold;
-            box-shadow: 4px 4px 12px #000; border: 1px solid rgba(255,255,255,0.1);
-        }}
-        .ball-x {{
-            width: 55px; height: 55px; border-radius: 50%; background: #111;
-            border: 2px dashed #ff4b00; display: inline-flex; align-items: center;
-            justify-content: center; color: #ff4b00; font-family: 'Orbitron'; font-size: 1.6rem;
-            text-shadow: 0 0 10px #ff4b00;
-        }}
+// =====================================================
+// HOT / COLD ENGINE (sem revelar o truque)
+// =====================================================
+function buildWeights(lastDraw) {
+  const weights = {};
+  NUMBERS.forEach(n => {
+    let w = 1;
+    if (lastDraw?.includes(n)) w += 0.6; // quente
+    if (n % 2 === 0) w += 0.1; // equilíbrio par/impar
+    if ([1, 5, 10, 15, 20, 25].includes(n)) w += 0.1; // distribuição visual
+    weights[n] = w;
+  });
+  return weights;
+}
 
-        /* Botão de Ação Estilizado */
-        div.stButton > button {{
-            background: linear-gradient(90deg, #ff4b00, #ff8700) !important;
-            border: none; color: white; border-radius: 50px; padding: 22px;
-            font-family: 'Orbitron'; font-size: 1.4rem; width: 100%;
-            box-shadow: 0 0 25px rgba(255,75,0,0.6); transition: 0.4s;
-            cursor: pointer;
-        }}
-        div.stButton > button:hover {{ transform: scale(1.03); filter: brightness(1.2); }}
-        
-        /* Rodapé Legal */
-        .footer-legal {{
-            text-align: center; font-size: 11px; color: #555; margin-top: 60px; 
-            border-top: 1px solid #222; padding-top: 25px; line-height: 1.6;
-        }}
-    </style>
-    
-    <div class="countdown-container">
-        <div class="timer-label">{status}</div>
-        <div class="timer-val">{countdown_time}</div>
+function weightedPick(count, weights) {
+  const pool = [];
+  Object.entries(weights).forEach(([n, w]) => {
+    for (let i = 0; i < Math.floor(w * 10); i++) pool.push(Number(n));
+  });
+  return shuffle(pool).filter((v, i, a) => a.indexOf(v) === i).slice(0, count);
+}
+
+// =====================================================
+// COMPONENTS
+// =====================================================
+
+function Countdown() {
+  const [time, setTime] = useState(null);
+  useEffect(() => {
+    const t = setInterval(() => setTime(getNextDrawCountdown()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return <div className="text-center text-yellow-400 mb-2">{time ? formatTime(time) : "Aguardando próximo ciclo"}</div>;
+}
+
+function CircularEngine({ active }) {
+  return (
+    <div className="relative w-72 h-72 mx-auto my-6">
+      <div className={`absolute inset-0 rounded-full border-4 border-purple-600 ${active ? "animate-spin" : "animate-spin-slow"}`} />
+      {NUMBERS.map((n, i) => {
+        const angle = (i / 25) * 2 * Math.PI;
+        const x = 120 + 100 * Math.cos(angle);
+        const y = 120 + 100 * Math.sin(angle);
+        return (
+          <div
+            key={n}
+            style={{ left: x, top: y }}
+            className="absolute w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+          >
+            <span className="bg-gradient-to-br from-purple-500 to-yellow-400 text-black w-full h-full rounded-full flex items-center justify-center">
+              {String(n).padStart(2, "0")}
+            </span>
+          </div>
+        );
+      })}
     </div>
-    """
-    st.markdown(css, unsafe_allow_html=True)
+  );
+}
 
-# --- 5. MOTOR DE INTELIGÊNCIA ESTATÍSTICA ---
-class TotolotoEngine:
-    def __init__(self):
-        # Números com maior tendência baseados em ciclos recentes de 2026
-        self.hot_pool = [2, 5, 6, 9, 10, 11, 13, 14, 15, 18, 20, 23, 24, 25]
-        
-    def generate(self, amount, last_draw=None, closing_n=15):
-        """Gera apostas baseadas em pesos estatísticos ou fechamento de matriz."""
-        bets = []
-        pool = list(range(1, 26))
-        
-        for _ in range(amount):
-            if closing_n > 15:
-                # Lógica de Fechamento de Matriz (Garante maior cobertura)
-                matrix = sorted(random.sample(pool, closing_n))
-                bet = sorted(random.sample(matrix, 15))
-            else:
-                # Lógica de Probabilidade Ponderada
-                weights = [1.9 if last_draw and i in last_draw else 1.0 for i in pool]
-                weights = [w * 1.6 if i in self.hot_pool else w for i, w in enumerate(weights, 1)]
-                
-                bet = []
-                while len(bet) < 15:
-                    pick = random.choices(pool, weights=weights, k=1)[0]
-                    if pick not in bet: bet.append(pick)
-                bet.sort()
-            bets.append(bet)
-        return bets
+function ModeSelector({ mode, setMode }) {
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <button onClick={() => setMode("individual")} className={`p-3 rounded-xl ${mode === "individual" ? "bg-purple-700" : "bg-gray-800"}`}>Individual</button>
+      <button onClick={() => setMode("bolao")} className={`p-3 rounded-xl ${mode === "bolao" ? "bg-purple-700" : "bg-gray-800"}`}>Bolão</button>
+    </div>
+  );
+}
 
-# --- 6. EXECUÇÃO PRINCIPAL DO APLICATIVO ---
-def main():
-    inject_luxury_design()
-    st.markdown("<h1 style='text-align:center; font-family:Orbitron; color:#ff4b00; margin-bottom:0;'>TOTOLOTO ALGORITMIA</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#888; margin-top:0;'>SISTEMA AVANÇADO DE ANÁLISE PROBABILÍSTICA</p>", unsafe_allow_html=True)
-
-    # Exibição do Motor Central (Globo)
-    if globo_src:
-        st.markdown(f"""
-            <div class='engine-area'>
-                <div class='energy-glow'></div>
-                <img src='{globo_src}' class='globo-main'>
-            </div>
-        """, unsafe_allow_html=True)
-
-    # --- PAINEL DE COMANDO DO USUÁRIO ---
-    st.markdown("### 🛠️ PAINEL DE CONFIGURAÇÃO")
-    
-    col_mode, col_draw = st.columns(2)
-    with col_mode:
-        play_mode = st.radio("MODO DE JOGO:", ["Modo Individual", "Modo Bolão"], horizontal=True, help="O modo Bolão gera jogos com maior conectividade entre si.")
-    with col_draw:
-        prev_draw = st.text_input("ÚLTIMO SORTEIO (Opcional):", placeholder="Ex: 02,05,09,12,15...")
-
-    col_close, col_qty = st.columns(2)
-    with col_close:
-        closing_val = st.slider("FECHAMENTO DE MATRIZ (Quantos números cercar?):", 15, 20, 15, help="Escolha cercar até 20 números para gerar combinações de 15.")
-    with col_qty:
-        qty_range = st.select_slider("VOLUME DE PROCESSAMENTO (Apostas):", 
-                                     options=["1-100", "100-1000", "1000-10000"], 
-                                     value="1-100")
-
-    # Mapeamento do volume de geração
-    qty_map = {"1-100": 100, "100-1000": 1000, "1000-10000": 10000}
-    num_bets = qty_map[qty_range]
-
-    # Botão de Execução
-    if st.button("🚀 INICIAR SIMULAÇÃO"):
-        # Efeito sonoro de imersão
-        st.markdown('<audio autoplay loop><source src="https://www.soundjay.com/misc/sounds/bingo-ball-machine-1.mp3"></audio>', unsafe_allow_html=True)
-        
-        # Processamento do sorteio anterior
-        p_list = []
-        try:
-            if prev_draw: p_list = [int(x.strip()) for x in prev_draw.split(',') if x.strip()]
-        except: st.error("Erro: Verifique o formato dos números do sorteio anterior.")
-
-        # Execução do Motor
-        engine = TotolotoEngine()
-        results = engine.generate(num_bets, p_list, closing_val)
-        
-        # Salvando no Estado da Sessão para persistência
-        st.session_state['results'] = results
-        st.session_state['mode'] = play_mode
-        st.session_state['closing'] = closing_val
-
-    # --- EXIBIÇÃO DINÂMICA DOS RESULTADOS ---
-    if 'results' in st.session_state:
-        st.divider()
-        st.subheader("🔮 RESULTADOS DA SIMULAÇÃO ELITE")
-        
-        display_results = st.session_state['results']
-        mode = st.session_state['mode']
-        is_closing = st.session_state['closing'] > 15
-
-        # Apresentação das primeiras 5 apostas com efeito de 'X' e delay UX
-        for i in range(min(5, len(display_results))):
-            bet = display_results[i]
-            
-            # Lógica do marcador 'X' (Somente no Modo Individual comum)
-            x_indices = random.sample(range(15), 1) if (mode == "Modo Individual" and not is_closing) else []
-            
-            ball_html = ""
-            for idx, num in enumerate(bet):
-                if idx in x_indices:
-                    ball_html += "<div class='ball-x'>X</div>"
-                else:
-                    ball_html += f"<div class='ball-3d'>{str(num).zfill(2)}</div>"
-            
-            st.markdown(f"<div style='margin-bottom:10px; color:#aaa;'>JOGO SUGERIDO {i+1}:</div>", unsafe_allow_html=True)
-            st.markdown(f"<div class='results-grid'>{ball_html}</div>", unsafe_allow_html=True)
-            time.sleep(0.8) # Simulação de processamento em tempo real
-
-        # --- FERRAMENTAS DE FILTRAGEM AVANÇADA ---
-        st.markdown("---")
-        if st.checkbox("🔍 FILTRAR TOP 100 APOSTAS QUENTES"):
-            st.success("Algoritmo finalizado. Estas 100 apostas possuem a maior taxa de convergência estatística.")
-            top_100 = display_results[:100]
-            df = pd.DataFrame(top_100, columns=[f"N{i+1}" for i in range(15)])
-            st.dataframe(df, use_container_width=True)
-            
-            # Recurso de Exportação Massiva
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 BAIXAR LISTA COMPLETA (CSV/EXCEL)", data=csv, file_name="apostas_totoloto_elite.csv")
-
-    # --- RODAPÉ LEGAL E REGRAS DE USO ---
-    st.markdown(f"""
-        <div class="footer-legal">
-            <p><b>AVISO DE RESPONSABILIDADE:</b> O Totoloto Algoritmia é uma ferramenta de simulação baseada em cálculos estatísticos e probabilidade. 
-            Não garantimos lucros, prêmios ou resultados financeiros de qualquer natureza.</p>
-            <p><b>RESTRITO:</b> O uso deste sistema é proibido para menores de 21 anos. Pratique o jogo consciente e responsável.</p>
-            <p style='color:#777;'>Versão 14.0 Master Elite © 2026 - Desenvolvido para o Mercado Brasileiro.</p>
+function Results({ bets }) {
+  return (
+    <div className="space-y-2">
+      {bets.map((bet, i) => (
+        <div key={i} className="flex flex-wrap gap-1">
+          {bet.map((n, idx) => (
+            <span key={idx} className="w-7 h-7 rounded-full bg-purple-800 flex items-center justify-center text-xs">
+              {n === -1 ? "X" : String(n).padStart(2, "0")}
+            </span>
+          ))}
         </div>
-    """, unsafe_allow_html=True)
+      ))}
+    </div>
+  );
+}
 
-if __name__ == "__main__":
-    main()
+function SocialProof({ bets, lastDraw }) {
+  if (!lastDraw) return null;
+  const stats = { 11: 0, 12: 0, 13: 0, 14: 0 };
+  bets.forEach(b => {
+    const h = countHits(b, lastDraw);
+    if (stats[h] !== undefined) stats[h]++;
+  });
+
+  return (
+    <div className="mt-6 p-4 rounded-2xl bg-black/50 border border-purple-700">
+      <h3 className="text-yellow-400 mb-3">Comparação com último sorteio</h3>
+      {stats[14] > 0 && <div className="p-3 bg-yellow-400 text-black rounded-xl font-bold animate-pulse">🔥 {stats[14]} apostas fariam 14 pontos</div>}
+      {stats[13] > 0 && <div className="p-3 mt-2 bg-purple-600 rounded-xl font-semibold">⭐ {stats[13]} apostas fariam 13 pontos</div>}
+      {[11, 12].map(k => stats[k] > 0 && <div key={k} className="text-sm opacity-80 mt-1">{stats[k]} apostas fariam {k} pontos</div>)}
+    </div>
+  );
+}
+
+function CopyCaixa({ bets }) {
+  function copy() {
+    const text = bets
+      .map(b => b.filter(n => n !== -1).map(n => String(n).padStart(2, "0")).join(" "))
+      .join("\n");
+    navigator.clipboard.writeText(text);
+    alert("Apostas copiadas para envio na Caixa");
+  }
+
+  return (
+    <button onClick={copy} className="w-full mt-4 p-3 bg-green-500 text-black rounded-xl font-bold">
+      Copiar para Caixa
+    </button>
+  );
+}
+
+// =====================================================
+// MAIN APP
+// =====================================================
+export default function App() {
+  const [mode, setMode] = useState(null);
+  const [volume, setVolume] = useState(100);
+  const [closure, setClosure] = useState(15);
+  const [bets, setBets] = useState([]);
+  const [lastDraw, setLastDraw] = useState(null);
+  const [filter, setFilter] = useState(20);
+  const [simulating, setSimulating] = useState(false);
+
+  useEffect(() => {
+    fetchLastDraw().then(setLastDraw);
+  }, []);
+
+  function simulate() {
+    const weights = buildWeights(lastDraw);
+    setSimulating(true);
+    const gen = [];
+
+    for (let i = 0; i < volume; i++) {
+      if (mode === "individual") {
+        gen.push([...weightedPick(14, weights), -1]);
+      } else {
+        gen.push(weightedPick(closure, weights));
+      }
+    }
+
+    setTimeout(() => {
+      setBets(gen);
+      setSimulating(false);
+    }, 2000);
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-purple-900 to-black text-white p-4">
+      <Countdown />
+      <CircularEngine active={simulating} />
+      <ModeSelector mode={mode} setMode={setMode} />
+
+      <div className="mt-4">
+        <label>Fechamento: {closure}</label>
+        <input type="range" min={15} max={20} value={closure} onChange={e => setClosure(+e.target.value)} className="w-full" />
+      </div>
+
+      <div className="mt-4">
+        <label>Volume</label>
+        <select value={volume} onChange={e => setVolume(+e.target.value)} className="w-full bg-black border p-2">
+          <option value={50}>1–100</option>
+          <option value={500}>100–1000</option>
+          <option value={2000}>1000–10000</option>
+        </select>
+      </div>
+
+      <button onClick={simulate} className="w-full mt-6 p-4 bg-yellow-500 text-black rounded-xl font-bold">SIMULAR</button>
+
+      {bets.length > 0 && (
+        <div className="mt-6">
+          <Results bets={bets.slice(0, filter)} />
+          <div className="mt-3">
+            <label>Filtrar apostas quentes: {filter}</label>
+            <input type="range" min={1} max={100} value={filter} onChange={e => setFilter(+e.target.value)} className="w-full" />
+          </div>
+          <CopyCaixa bets={bets.slice(0, filter)} />
+          <SocialProof bets={bets} lastDraw={lastDraw} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =====================================================
+// Tailwind extra:
+// .animate-spin-slow { animation: spin 14s linear infinite }
+// =====================================================
