@@ -1,249 +1,205 @@
-// =====================================================
-// TOTOLOTO ALGORITMIA – Lotofácil Engine (PRO+)
-// Hot/Cold Logic + Copy Caixa + Circular Engine (25 balls)
-// =====================================================
+# -*- coding: utf-8 -*-
+# =====================================================
+# TOTOLOTO ALGORITMIA
+# Lotofacil Simulation & Analysis Engine (PRO+)
+# Plataforma: Streamlit
+# =====================================================
 
-import React, { useEffect, useState } from "react";
+import streamlit as st
+import random
+import math
+import requests
+from collections import Counter
 
-// =====================================================
-// CONFIG – LOTOFÁCIL
-// =====================================================
-const NUMBERS = Array.from({ length: 25 }, (_, i) => i + 1);
-const DRAW_DAYS = [2, 4, 6]; // Terça, Quinta, Sábado
+# -----------------------------------------------------
+# CONFIGURAÇÃO GERAL
+# -----------------------------------------------------
+st.set_page_config(
+    page_title="TOTOLOTO ALGORITMIA",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
-// =====================================================
-// API – Último sorteio oficial (Caixa)
-// =====================================================
-async function fetchLastDraw() {
-  try {
-    const res = await fetch("https://loteriascaixa-api.herokuapp.com/api/lotofacil/latest");
-    const data = await res.json();
-    return data.dezenas.map(n => parseInt(n, 10));
-  } catch {
-    return null;
-  }
-}
+# -----------------------------------------------------
+# API – Último sorteio oficial Lotofácil (Caixa)
+# -----------------------------------------------------
+@st.cache_data(ttl=3600)
+def fetch_last_draw():
+    try:
+        res = requests.get(
+            "https://loteriascaixa-api.herokuapp.com/api/lotofacil/latest",
+            timeout=10
+        )
+        data = res.json()
+        return [int(n) for n in data["dezenas"]]
+    except Exception:
+        return []
 
-// =====================================================
-// UTILS
-// =====================================================
-function getNextDrawCountdown() {
-  const now = new Date();
-  if ([0, 1].includes(now.getDay())) return null;
-  let next = new Date(now);
-  while (!DRAW_DAYS.includes(next.getDay())) next.setDate(next.getDate() + 1);
-  next.setHours(20, 0, 0, 0);
-  const diff = next.getTime() - now.getTime();
-  return diff > 0 ? diff : null;
-}
+LAST_DRAW = fetch_last_draw()
 
-function formatTime(ms) {
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  const s = Math.floor((ms % 60000) / 1000);
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
+# -----------------------------------------------------
+# HOT / COLD ENGINE (sem كشف)
+# -----------------------------------------------------
+def hot_cold_weights(last_draw):
+    weights = {}
+    for n in range(1, 26):
+        base = 1.0
+        if n in last_draw:
+            base += random.uniform(0.3, 0.6)
+        base += random.uniform(0.0, 0.4)
+        weights[n] = base
+    return weights
 
-function shuffle(arr) {
-  return [...arr].sort(() => Math.random() - 0.5);
-}
+# -----------------------------------------------------
+# GERADOR DE APOSTAS
+# -----------------------------------------------------
+def generate_bet(weights, size=15, allow_x=True):
+    nums = list(weights.keys())
+    selected = random.choices(nums, weights=[weights[n] for n in nums], k=size)
+    bet = sorted(set(selected))
 
-function countHits(bet, draw) {
-  return bet.filter(n => n !== -1 && draw.includes(n)).length;
-}
+    while len(bet) < size:
+        bet.append(random.choice(nums))
+        bet = sorted(set(bet))
 
-// =====================================================
-// HOT / COLD ENGINE (sem revelar o truque)
-// =====================================================
-function buildWeights(lastDraw) {
-  const weights = {};
-  NUMBERS.forEach(n => {
-    let w = 1;
-    if (lastDraw?.includes(n)) w += 0.6; // quente
-    if (n % 2 === 0) w += 0.1; // equilíbrio par/impar
-    if ([1, 5, 10, 15, 20, 25].includes(n)) w += 0.1; // distribuição visual
-    weights[n] = w;
-  });
-  return weights;
-}
+    if allow_x:
+        x_pos = random.randint(0, len(bet) - 1)
+        bet[x_pos] = "X"
 
-function weightedPick(count, weights) {
-  const pool = [];
-  Object.entries(weights).forEach(([n, w]) => {
-    for (let i = 0; i < Math.floor(w * 10); i++) pool.push(Number(n));
-  });
-  return shuffle(pool).filter((v, i, a) => a.indexOf(v) === i).slice(0, count);
-}
+    return bet
 
-// =====================================================
-// COMPONENTS
-// =====================================================
+def generate_bets(qty, bet_size, allow_x=True):
+    weights = hot_cold_weights(LAST_DRAW)
+    return [generate_bet(weights, bet_size, allow_x) for _ in range(qty)]
 
-function Countdown() {
-  const [time, setTime] = useState(null);
-  useEffect(() => {
-    const t = setInterval(() => setTime(getNextDrawCountdown()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  return <div className="text-center text-yellow-400 mb-2">{time ? formatTime(time) : "Aguardando próximo ciclo"}</div>;
-}
+# -----------------------------------------------------
+# CONTADOR DE ACERTOS
+# -----------------------------------------------------
+def count_hits(bet, draw):
+    return len([n for n in bet if n != "X" and n in draw])
 
-function CircularEngine({ active }) {
-  return (
-    <div className="relative w-72 h-72 mx-auto my-6">
-      <div className={`absolute inset-0 rounded-full border-4 border-purple-600 ${active ? "animate-spin" : "animate-spin-slow"}`} />
-      {NUMBERS.map((n, i) => {
-        const angle = (i / 25) * 2 * Math.PI;
-        const x = 120 + 100 * Math.cos(angle);
-        const y = 120 + 100 * Math.sin(angle);
-        return (
-          <div
-            key={n}
-            style={{ left: x, top: y }}
-            className="absolute w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-          >
-            <span className="bg-gradient-to-br from-purple-500 to-yellow-400 text-black w-full h-full rounded-full flex items-center justify-center">
-              {String(n).padStart(2, "0")}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+# -----------------------------------------------------
+# SOCIAL PROOF
+# -----------------------------------------------------
+def render_social_proof(bets, draw):
+    stats = Counter()
+    for b in bets:
+        hits = count_hits(b, draw)
+        if hits >= 11:
+            stats[hits] += 1
 
-function ModeSelector({ mode, setMode }) {
-  return (
-    <div className="grid grid-cols-2 gap-4">
-      <button onClick={() => setMode("individual")} className={`p-3 rounded-xl ${mode === "individual" ? "bg-purple-700" : "bg-gray-800"}`}>Individual</button>
-      <button onClick={() => setMode("bolao")} className={`p-3 rounded-xl ${mode === "bolao" ? "bg-purple-700" : "bg-gray-800"}`}>Bolão</button>
-    </div>
-  );
-}
+    if not stats:
+        return
 
-function Results({ bets }) {
-  return (
-    <div className="space-y-2">
-      {bets.map((bet, i) => (
-        <div key={i} className="flex flex-wrap gap-1">
-          {bet.map((n, idx) => (
-            <span key={idx} className="w-7 h-7 rounded-full bg-purple-800 flex items-center justify-center text-xs">
-              {n === -1 ? "X" : String(n).padStart(2, "0")}
-            </span>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
+    st.markdown("### Comparação com o último sorteio")
 
-function SocialProof({ bets, lastDraw }) {
-  if (!lastDraw) return null;
-  const stats = { 11: 0, 12: 0, 13: 0, 14: 0 };
-  bets.forEach(b => {
-    const h = countHits(b, lastDraw);
-    if (stats[h] !== undefined) stats[h]++;
-  });
+    if stats.get(14, 0) > 0:
+        st.markdown(
+            f"<div style='padding:12px;border-radius:12px;"
+            f"background:linear-gradient(90deg,#f5c542,#ffdd88);"
+            f"color:black;font-weight:700;'>"
+            f"🔥 {stats[14]} apostas fariam 14 pontos"
+            f"</div>",
+            unsafe_allow_html=True
+        )
 
-  return (
-    <div className="mt-6 p-4 rounded-2xl bg-black/50 border border-purple-700">
-      <h3 className="text-yellow-400 mb-3">Comparação com último sorteio</h3>
-      {stats[14] > 0 && <div className="p-3 bg-yellow-400 text-black rounded-xl font-bold animate-pulse">🔥 {stats[14]} apostas fariam 14 pontos</div>}
-      {stats[13] > 0 && <div className="p-3 mt-2 bg-purple-600 rounded-xl font-semibold">⭐ {stats[13]} apostas fariam 13 pontos</div>}
-      {[11, 12].map(k => stats[k] > 0 && <div key={k} className="text-sm opacity-80 mt-1">{stats[k]} apostas fariam {k} pontos</div>)}
-    </div>
-  );
-}
+    if stats.get(13, 0) > 0:
+        st.markdown(
+            f"<div style='margin-top:8px;padding:10px;border-radius:10px;"
+            f"background:linear-gradient(90deg,#7c3aed,#a78bfa);"
+            f"color:white;font-weight:600;'>"
+            f"⭐ {stats[13]} apostas fariam 13 pontos"
+            f"</div>",
+            unsafe_allow_html=True
+        )
 
-function CopyCaixa({ bets }) {
-  function copy() {
-    const text = bets
-      .map(b => b.filter(n => n !== -1).map(n => String(n).padStart(2, "0")).join(" "))
-      .join("\n");
-    navigator.clipboard.writeText(text);
-    alert("Apostas copiadas para envio na Caixa");
-  }
+    for k in [12, 11]:
+        if stats.get(k, 0) > 0:
+            st.write(f"{stats[k]} apostas fariam {k} pontos")
 
-  return (
-    <button onClick={copy} className="w-full mt-4 p-3 bg-green-500 text-black rounded-xl font-bold">
-      Copiar para Caixa
-    </button>
-  );
-}
+# -----------------------------------------------------
+# MOTOR CIRCULAR (25 BOLAS)
+# -----------------------------------------------------
+def render_circular_engine():
+    balls = []
+    radius = 120
+    cx, cy = 150, 150
 
-// =====================================================
-// MAIN APP
-// =====================================================
-export default function App() {
-  const [mode, setMode] = useState(null);
-  const [volume, setVolume] = useState(100);
-  const [closure, setClosure] = useState(15);
-  const [bets, setBets] = useState([]);
-  const [lastDraw, setLastDraw] = useState(null);
-  const [filter, setFilter] = useState(20);
-  const [simulating, setSimulating] = useState(false);
+    for i in range(25):
+        angle = (2 * math.pi / 25) * i
+        x = cx + radius * math.cos(angle)
+        y = cy + radius * math.sin(angle)
+        balls.append(
+            f"<circle cx='{x}' cy='{y}' r='14' fill='hsl({i*14},70%,55%)' />"
+            f"<text x='{x}' y='{y+5}' text-anchor='middle' "
+            f"font-size='10' fill='black'>{i+1}</text>"
+        )
 
-  useEffect(() => {
-    fetchLastDraw().then(setLastDraw);
-  }, []);
+    svg = (
+        "<svg width='300' height='300' viewBox='0 0 300 300'>"
+        "<g>"
+        + "".join(balls) +
+        "</g></svg>"
+    )
 
-  function simulate() {
-    const weights = buildWeights(lastDraw);
-    setSimulating(true);
-    const gen = [];
+    st.markdown(svg, unsafe_allow_html=True)
 
-    for (let i = 0; i < volume; i++) {
-      if (mode === "individual") {
-        gen.push([...weightedPick(14, weights), -1]);
-      } else {
-        gen.push(weightedPick(closure, weights));
-      }
-    }
+# -----------------------------------------------------
+# INTERFACE
+# -----------------------------------------------------
+st.title("TOTOLOTO ALGORITMIA")
+st.caption("Simulação inteligente para Lotofácil")
 
-    setTimeout(() => {
-      setBets(gen);
-      setSimulating(false);
-    }, 2000);
-  }
+render_circular_engine()
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-900 to-black text-white p-4">
-      <Countdown />
-      <CircularEngine active={simulating} />
-      <ModeSelector mode={mode} setMode={setMode} />
+modo = st.selectbox(
+    "Modo de jogo",
+    ["Individual", "Bolão (Fechamento)"]
+)
 
-      <div className="mt-4">
-        <label>Fechamento: {closure}</label>
-        <input type="range" min={15} max={20} value={closure} onChange={e => setClosure(+e.target.value)} className="w-full" />
-      </div>
+bet_size = st.slider(
+    "Quantidade de números por aposta",
+    min_value=15,
+    max_value=20,
+    value=15
+)
 
-      <div className="mt-4">
-        <label>Volume</label>
-        <select value={volume} onChange={e => setVolume(+e.target.value)} className="w-full bg-black border p-2">
-          <option value={50}>1–100</option>
-          <option value={500}>100–1000</option>
-          <option value={2000}>1000–10000</option>
-        </select>
-      </div>
+qty_range = st.radio(
+    "Quantidade de apostas",
+    ["1–100", "100–1000", "1000–10000"]
+)
 
-      <button onClick={simulate} className="w-full mt-6 p-4 bg-yellow-500 text-black rounded-xl font-bold">SIMULAR</button>
+if qty_range == "1–100":
+    qty = st.slider("Apostas", 1, 100, 20)
+elif qty_range == "100–1000":
+    qty = st.slider("Apostas", 100, 1000, 200)
+else:
+    qty = st.slider("Apostas", 1000, 10000, 2000)
 
-      {bets.length > 0 && (
-        <div className="mt-6">
-          <Results bets={bets.slice(0, filter)} />
-          <div className="mt-3">
-            <label>Filtrar apostas quentes: {filter}</label>
-            <input type="range" min={1} max={100} value={filter} onChange={e => setFilter(+e.target.value)} className="w-full" />
-          </div>
-          <CopyCaixa bets={bets.slice(0, filter)} />
-          <SocialProof bets={bets} lastDraw={lastDraw} />
-        </div>
-      )}
-    </div>
-  );
-}
+simulate = st.button("Simular")
 
-// =====================================================
-// Tailwind extra:
-// .animate-spin-slow { animation: spin 14s linear infinite }
-// =====================================================
+# -----------------------------------------------------
+# RESULTADOS
+# -----------------------------------------------------
+if simulate:
+    allow_x = modo == "Individual"
+    bets = generate_bets(qty, bet_size, allow_x)
+
+    st.markdown("### Resultados (amostra)")
+    for b in bets[:10]:
+        st.write(" ".join(str(n).zfill(2) if n != "X" else "X" for n in b))
+
+    # Copiar para Caixa
+    formatted = "\n".join(
+        " ".join(str(n).zfill(2) for n in b if n != "X")
+        for b in bets
+    )
+
+    st.text_area(
+        "Copiar apostas para Caixa",
+        value=formatted,
+        height=200
+    )
+
+    if LAST_DRAW:
+        render_social_proof(bets, LAST_DRAW)
