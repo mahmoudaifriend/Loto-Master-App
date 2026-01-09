@@ -1,205 +1,159 @@
 # -*- coding: utf-8 -*-
-# =====================================================
-# TOTOLOTO ALGORITMIA
-# Lotofacil Simulation & Analysis Engine (PRO+)
-# Plataforma: Streamlit
-# =====================================================
-
 import streamlit as st
 import random
 import math
+import time
 import requests
-from collections import Counter
 
-# -----------------------------------------------------
-# CONFIGURAÇÃO GERAL
-# -----------------------------------------------------
+# --------------------------------------------------
+# PAGE CONFIG
+# --------------------------------------------------
 st.set_page_config(
     page_title="TOTOLOTO ALGORITMIA",
-    layout="centered",
-    initial_sidebar_state="collapsed"
+    layout="centered"
 )
 
-# -----------------------------------------------------
-# API – Último sorteio oficial Lotofácil (Caixa)
-# -----------------------------------------------------
+# --------------------------------------------------
+# GLOBAL STYLE (LOTOfácil)
+# --------------------------------------------------
+st.markdown("""
+<style>
+body {
+    background: radial-gradient(circle at top, #2b0a3d, #120018);
+    color: #f5d76e;
+}
+h1, h2, h3 {
+    color: #f5d76e;
+}
+.engine {
+    width:300px;
+    height:300px;
+    margin:auto;
+    animation: spin 12s linear infinite;
+    filter: drop-shadow(0 0 25px #a855f7);
+}
+@keyframes spin {
+    from {transform: rotate(0deg);}
+    to {transform: rotate(360deg);}
+}
+.ball {
+    fill: #7c3aed;
+}
+.simulating .engine {
+    animation: spin 2s linear infinite;
+}
+.result-ball {
+    display:inline-block;
+    width:42px;
+    height:42px;
+    border-radius:50%;
+    background:#f5d76e;
+    color:#1a0022;
+    text-align:center;
+    line-height:42px;
+    margin:4px;
+    font-weight:bold;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# --------------------------------------------------
+# API LAST DRAW
+# --------------------------------------------------
 @st.cache_data(ttl=3600)
 def fetch_last_draw():
     try:
-        res = requests.get(
+        r = requests.get(
             "https://loteriascaixa-api.herokuapp.com/api/lotofacil/latest",
             timeout=10
         )
-        data = res.json()
-        return [int(n) for n in data["dezenas"]]
-    except Exception:
+        return [int(n) for n in r.json()["dezenas"]]
+    except:
         return []
 
 LAST_DRAW = fetch_last_draw()
 
-# -----------------------------------------------------
-# HOT / COLD ENGINE (sem كشف)
-# -----------------------------------------------------
-def hot_cold_weights(last_draw):
-    weights = {}
-    for n in range(1, 26):
-        base = 1.0
-        if n in last_draw:
-            base += random.uniform(0.3, 0.6)
-        base += random.uniform(0.0, 0.4)
-        weights[n] = base
-    return weights
-
-# -----------------------------------------------------
-# GERADOR DE APOSTAS
-# -----------------------------------------------------
-def generate_bet(weights, size=15, allow_x=True):
-    nums = list(weights.keys())
-    selected = random.choices(nums, weights=[weights[n] for n in nums], k=size)
-    bet = sorted(set(selected))
-
-    while len(bet) < size:
-        bet.append(random.choice(nums))
-        bet = sorted(set(bet))
-
-    if allow_x:
-        x_pos = random.randint(0, len(bet) - 1)
-        bet[x_pos] = "X"
-
-    return bet
-
-def generate_bets(qty, bet_size, allow_x=True):
-    weights = hot_cold_weights(LAST_DRAW)
-    return [generate_bet(weights, bet_size, allow_x) for _ in range(qty)]
-
-# -----------------------------------------------------
-# CONTADOR DE ACERTOS
-# -----------------------------------------------------
-def count_hits(bet, draw):
-    return len([n for n in bet if n != "X" and n in draw])
-
-# -----------------------------------------------------
-# SOCIAL PROOF
-# -----------------------------------------------------
-def render_social_proof(bets, draw):
-    stats = Counter()
-    for b in bets:
-        hits = count_hits(b, draw)
-        if hits >= 11:
-            stats[hits] += 1
-
-    if not stats:
-        return
-
-    st.markdown("### Comparação com o último sorteio")
-
-    if stats.get(14, 0) > 0:
-        st.markdown(
-            f"<div style='padding:12px;border-radius:12px;"
-            f"background:linear-gradient(90deg,#f5c542,#ffdd88);"
-            f"color:black;font-weight:700;'>"
-            f"🔥 {stats[14]} apostas fariam 14 pontos"
-            f"</div>",
-            unsafe_allow_html=True
-        )
-
-    if stats.get(13, 0) > 0:
-        st.markdown(
-            f"<div style='margin-top:8px;padding:10px;border-radius:10px;"
-            f"background:linear-gradient(90deg,#7c3aed,#a78bfa);"
-            f"color:white;font-weight:600;'>"
-            f"⭐ {stats[13]} apostas fariam 13 pontos"
-            f"</div>",
-            unsafe_allow_html=True
-        )
-
-    for k in [12, 11]:
-        if stats.get(k, 0) > 0:
-            st.write(f"{stats[k]} apostas fariam {k} pontos")
-
-# -----------------------------------------------------
-# MOTOR CIRCULAR (25 BOLAS)
-# -----------------------------------------------------
-def render_circular_engine():
+# --------------------------------------------------
+# ENGINE VISUAL
+# --------------------------------------------------
+def render_engine():
     balls = []
-    radius = 120
-    cx, cy = 150, 150
-
+    r = 120
+    cx = cy = 150
     for i in range(25):
-        angle = (2 * math.pi / 25) * i
-        x = cx + radius * math.cos(angle)
-        y = cy + radius * math.sin(angle)
+        ang = 2 * math.pi * i / 25
+        x = cx + r * math.cos(ang)
+        y = cy + r * math.sin(ang)
         balls.append(
-            f"<circle cx='{x}' cy='{y}' r='14' fill='hsl({i*14},70%,55%)' />"
-            f"<text x='{x}' y='{y+5}' text-anchor='middle' "
-            f"font-size='10' fill='black'>{i+1}</text>"
+            f"<circle cx='{x}' cy='{y}' r='14' class='ball' />"
+            f"<text x='{x}' y='{y+5}' text-anchor='middle' font-size='10' fill='black'>{i+1}</text>"
         )
-
-    svg = (
-        "<svg width='300' height='300' viewBox='0 0 300 300'>"
-        "<g>"
-        + "".join(balls) +
-        "</g></svg>"
-    )
-
+    svg = "<svg class='engine' viewBox='0 0 300 300'>" + "".join(balls) + "</svg>"
     st.markdown(svg, unsafe_allow_html=True)
 
-# -----------------------------------------------------
-# INTERFACE
-# -----------------------------------------------------
+# --------------------------------------------------
+# HOT/COLD (SILENT)
+# --------------------------------------------------
+def generate_bet(size=15, allow_x=True):
+    nums = list(range(1,26))
+    weights = []
+    for n in nums:
+        w = 1.0
+        if n in LAST_DRAW:
+            w += random.uniform(0.4,0.7)
+        weights.append(w)
+    bet = sorted(random.choices(nums, weights=weights, k=size))
+    bet = list(dict.fromkeys(bet))
+    while len(bet)<size:
+        bet.append(random.choice(nums))
+        bet = list(dict.fromkeys(bet))
+    bet.sort()
+    if allow_x:
+        bet[random.randint(0,size-1)] = "X"
+    return bet
+
+# --------------------------------------------------
+# UI
+# --------------------------------------------------
 st.title("TOTOLOTO ALGORITMIA")
-st.caption("Simulação inteligente para Lotofácil")
+st.caption("Motor inteligente para Lotofácil")
 
-render_circular_engine()
+render_engine()
 
-modo = st.selectbox(
-    "Modo de jogo",
-    ["Individual", "Bolão (Fechamento)"]
-)
+modo = st.radio("Modo", ["Individual", "Bolão"])
+range_choice = st.radio("Quantidade de apostas", ["1–100", "100–1000", "1000–10000"])
 
-bet_size = st.slider(
-    "Quantidade de números por aposta",
-    min_value=15,
-    max_value=20,
-    value=15
-)
-
-qty_range = st.radio(
-    "Quantidade de apostas",
-    ["1–100", "100–1000", "1000–10000"]
-)
-
-if qty_range == "1–100":
-    qty = st.slider("Apostas", 1, 100, 20)
-elif qty_range == "100–1000":
-    qty = st.slider("Apostas", 100, 1000, 200)
+if range_choice == "1–100":
+    qty = 100
+elif range_choice == "100–1000":
+    qty = 500
 else:
-    qty = st.slider("Apostas", 1000, 10000, 2000)
+    qty = 2000
 
-simulate = st.button("Simular")
+simulate = st.button("🔮 Simular agora")
 
-# -----------------------------------------------------
-# RESULTADOS
-# -----------------------------------------------------
+# --------------------------------------------------
+# SIMULATION
+# --------------------------------------------------
 if simulate:
-    allow_x = modo == "Individual"
-    bets = generate_bets(qty, bet_size, allow_x)
+    st.markdown("<div class='simulating'>", unsafe_allow_html=True)
+    bets = [generate_bet(15, modo=="Individual") for _ in range(qty)]
 
-    st.markdown("### Resultados (amostra)")
-    for b in bets[:10]:
-        st.write(" ".join(str(n).zfill(2) if n != "X" else "X" for n in b))
+    st.subheader("Apostas (revelação)")
+    for i, b in enumerate(bets[:5]):
+        row = st.empty()
+        shown = ""
+        for n in b:
+            time.sleep(0.3)
+            shown += f"<span class='result-ball'>{n}</span>"
+            row.markdown(shown, unsafe_allow_html=True)
 
-    # Copiar para Caixa
-    formatted = "\n".join(
-        " ".join(str(n).zfill(2) for n in b if n != "X")
+    st.subheader("Resumo")
+    st.write(f"{qty} apostas geradas com sucesso.")
+
+    text = "\n".join(
+        " ".join(str(n).zfill(2) for n in b if n!="X")
         for b in bets
     )
 
-    st.text_area(
-        "Copiar apostas para Caixa",
-        value=formatted,
-        height=200
-    )
-
-    if LAST_DRAW:
-        render_social_proof(bets, LAST_DRAW)
+    st.text_area("Copiar para Caixa", text, height=200)
