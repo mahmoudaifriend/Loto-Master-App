@@ -1,159 +1,127 @@
-# -*- coding: utf-8 -*-
-import streamlit as st
-import random
-import math
-import time
-import requests
+<!DOCTYPE html>
+<html lang="pt-br" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador Lotofácil - Mahmoud</title>
+    <style>
+        /* Basic body styles for centering and dark theme */
+        body { background-color: #1a1a1a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; overflow-x: hidden; }
+        
+        /* The circular engine container style */
+        #engine-container { position: relative; width: 300px; height: 300px; border: 8px solid #444; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, #333, #000); box-shadow: 0 0 30px rgba(0,0,0,0.5); transition: transform 0.5s ease; }
+        
+        /* Spinning animations states */
+        .spin-slow { animation: rotate 10s linear infinite; }
+        .spin-fast { animation: rotate 0.3s linear infinite; }
+        
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-# --------------------------------------------------
-# PAGE CONFIG
-# --------------------------------------------------
-st.set_page_config(
-    page_title="TOTOLOTO ALGORITMIA",
-    layout="centered"
-)
+        /* Styles for the balls inside the engine */
+        .ball { position: absolute; width: 30px; height: 30px; background-color: #8e44ad; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; border: 2px solid #5e3370; color: white; box-shadow: inset -2px -2px 5px rgba(0,0,0,0.5); }
 
-# --------------------------------------------------
-# GLOBAL STYLE (LOTOfácil)
-# --------------------------------------------------
-st.markdown("""
-<style>
-body {
-    background: radial-gradient(circle at top, #2b0a3d, #120018);
-    color: #f5d76e;
-}
-h1, h2, h3 {
-    color: #f5d76e;
-}
-.engine {
-    width:300px;
-    height:300px;
-    margin:auto;
-    animation: spin 12s linear infinite;
-    filter: drop-shadow(0 0 25px #a855f7);
-}
-@keyframes spin {
-    from {transform: rotate(0deg);}
-    to {transform: rotate(360deg);}
-}
-.ball {
-    fill: #7c3aed;
-}
-.simulating .engine {
-    animation: spin 2s linear infinite;
-}
-.result-ball {
-    display:inline-block;
-    width:42px;
-    height:42px;
-    border-radius:50%;
-    background:#f5d76e;
-    color:#1a0022;
-    text-align:center;
-    line-height:42px;
-    margin:4px;
-    font-weight:bold;
-}
-</style>
-""", unsafe_allow_html=True)
+        /* Control panel area */
+        .controls { margin-top: 30px; text-align: center; z-index: 10; }
+        input { padding: 10px; border-radius: 5px; border: none; width: 60px; text-align: center; font-size: 18px; }
+        button { padding: 10px 25px; border-radius: 5px; border: none; background-color: #8e44ad; color: white; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.3s; }
+        button:hover { background-color: #9b59b6; transform: scale(1.05); }
+        button:disabled { background-color: #555; cursor: not-allowed; }
 
-# --------------------------------------------------
-# API LAST DRAW
-# --------------------------------------------------
-@st.cache_data(ttl=3600)
-def fetch_last_draw():
-    try:
-        r = requests.get(
-            "https://loteriascaixa-api.herokuapp.com/api/lotofacil/latest",
-            timeout=10
-        )
-        return [int(n) for n in r.json()["dezenas"]]
-    except:
-        return []
+        /* Area where drawn balls appear */
+        #results-area { margin-top: 40px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 600px; min-height: 50px; }
+        
+        /* Style and animation for the popped-out balls */
+        .popped-ball { width: 40px; height: 40px; background-color: #8e44ad; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; animation: pop-up 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
 
-LAST_DRAW = fetch_last_draw()
+        @keyframes pop-up { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
 
-# --------------------------------------------------
-# ENGINE VISUAL
-# --------------------------------------------------
-def render_engine():
-    balls = []
-    r = 120
-    cx = cy = 150
-    for i in range(25):
-        ang = 2 * math.pi * i / 25
-        x = cx + r * math.cos(ang)
-        y = cy + r * math.sin(ang)
-        balls.append(
-            f"<circle cx='{x}' cy='{y}' r='14' class='ball' />"
-            f"<text x='{x}' y='{y+5}' text-anchor='middle' font-size='10' fill='black'>{i+1}</text>"
-        )
-    svg = "<svg class='engine' viewBox='0 0 300 300'>" + "".join(balls) + "</svg>"
-    st.markdown(svg, unsafe_allow_html=True)
+    <h1>Motor de Sorteio Lotofácil 🎰</h1>
 
-# --------------------------------------------------
-# HOT/COLD (SILENT)
-# --------------------------------------------------
-def generate_bet(size=15, allow_x=True):
-    nums = list(range(1,26))
-    weights = []
-    for n in nums:
-        w = 1.0
-        if n in LAST_DRAW:
-            w += random.uniform(0.4,0.7)
-        weights.append(w)
-    bet = sorted(random.choices(nums, weights=weights, k=size))
-    bet = list(dict.fromkeys(bet))
-    while len(bet)<size:
-        bet.append(random.choice(nums))
-        bet = list(dict.fromkeys(bet))
-    bet.sort()
-    if allow_x:
-        bet[random.randint(0,size-1)] = "X"
-    return bet
+    <div id="engine-container" class="spin-slow">
+        </div>
 
-# --------------------------------------------------
-# UI
-# --------------------------------------------------
-st.title("TOTOLOTO ALGORITMIA")
-st.caption("Motor inteligente para Lotofácil")
+    <div class="controls">
+        <label>Quantidade de bolas a sortear (1-25): </label>
+        <input type="number" id="rounds" value="15" min="1" max="25">
+        <br><br>
+        <button id="simulateBtn" onclick="startSimulation()">Iniciar Simulação</button>
+    </div>
 
-render_engine()
+    <div id="results-area" id="results"></div>
 
-modo = st.radio("Modo", ["Individual", "Bolão"])
-range_choice = st.radio("Quantidade de apostas", ["1–100", "100–1000", "1000–10000"])
+    <script>
+        const engine = document.getElementById('engine-container');
+        const resultsArea = document.getElementById('results-area');
+        const simulateBtn = document.getElementById('simulateBtn');
+        const ballsCount = 25;
 
-if range_choice == "1–100":
-    qty = 100
-elif range_choice == "100–1000":
-    qty = 500
-else:
-    qty = 2000
+        // Function to create the initial 25 balls inside the engine with 'X'
+        function createInitialBalls() {
+            engine.innerHTML = '';
+            for (let i = 1; i <= ballsCount; i++) {
+                const ball = document.createElement('div');
+                ball.className = 'ball';
+                ball.innerText = 'X';
+                ball.id = 'ball-' + i;
+                
+                // Random distribution of balls inside the circle boundary
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * 100; // Keep within radius
+                ball.style.left = `calc(50% + ${Math.cos(angle) * dist}px - 15px)`;
+                ball.style.top = `calc(50% + ${Math.sin(angle) * dist}px - 15px)`;
+                
+                engine.appendChild(ball);
+            }
+        }
 
-simulate = st.button("🔮 Simular agora")
+        // Main async function to handle the simulation flow
+        async function startSimulation() {
+            const rounds = parseInt(document.getElementById('rounds').value);
+            // Validation alert in Portuguese
+            if (rounds < 1 || rounds > 25) return alert("Por favor, escolha um número entre 1 e 25.");
 
-# --------------------------------------------------
-# SIMULATION
-# --------------------------------------------------
-if simulate:
-    st.markdown("<div class='simulating'>", unsafe_allow_html=True)
-    bets = [generate_bet(15, modo=="Individual") for _ in range(qty)]
+            simulateBtn.disabled = true;
+            resultsArea.innerHTML = '';
+            createInitialBalls();
 
-    st.subheader("Apostas (revelação)")
-    for i, b in enumerate(bets[:5]):
-        row = st.empty()
-        shown = ""
-        for n in b:
-            time.sleep(0.3)
-            shown += f"<span class='result-ball'>{n}</span>"
-            row.markdown(shown, unsafe_allow_html=True)
+            // Create an array of available numbers [1...25]
+            const availableBalls = Array.from({length: 25}, (_, i) => i + 1);
 
-    st.subheader("Resumo")
-    st.write(f"{qty} apostas geradas com sucesso.")
+            for (let i = 0; i < rounds; i++) {
+                // 1. Speed up the engine (High RPM state)
+                engine.className = 'spin-fast';
+                
+                // Wait for 4.5 seconds while spinning fast
+                await new Promise(r => setTimeout(r, 4500));
 
-    text = "\n".join(
-        " ".join(str(n).zfill(2) for n in b if n!="X")
-        for b in bets
-    )
+                // 2. Remove a ball randomly from the engine visually and logically
+                const randomIndex = Math.floor(Math.random() * availableBalls.length);
+                // Get the actual number and remove from array
+                const ballNum = availableBalls.splice(randomIndex, 1)[0]; 
+                // Remove the visual 'X' ball from inside the engine
+                const ballElement = document.getElementById('ball-' + ballNum);
+                if (ballElement) ballElement.remove();
 
-    st.text_area("Copiar para Caixa", text, height=200)
+                // 3. Pop up the ball in the results area with the actual number
+                const poppedBall = document.createElement('div');
+                poppedBall.className = 'popped-ball';
+                poppedBall.innerText = ballNum; 
+                resultsArea.appendChild(poppedBall);
+
+                // 4. Slow down the engine for 2 seconds (Idle state)
+                engine.className = 'spin-slow';
+                await new Promise(r => setTimeout(r, 2000));
+            }
+
+            simulateBtn.disabled = false;
+            // Final alert in Portuguese
+            alert("Simulação concluída!");
+        }
+
+        // Initial setup on page load
+        createInitialBalls();
+    </script>
+</body>
+</html>
