@@ -1,300 +1,271 @@
 import streamlit as st
 import time
 import random
-import itertools
-import pandas as pd
-from io import BytesIO
 
-# --- CONFIGURATION ---
+# --- 1. SETTINGS & THEME ---
 st.set_page_config(page_title="TOTOLOTO ALGORITMIA", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CUSTOM CSS (Casinos Style & 3D Spheres) ---
+# --- 2. PROFESSIONAL CASINO CSS ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;700&display=swap');
 
-    /* Global Background */
+    /* Global Style */
     .stApp {
-        background: radial-gradient(circle at top, #2b0035 0%, #100012 100%);
+        background: radial-gradient(circle at top, #2b0035 0%, #000000 100%);
         color: #ffffff;
         font-family: 'Roboto', sans-serif;
     }
 
-    /* Titles */
+    /* Professional Titles */
     .main-title {
         font-family: 'Orbitron', sans-serif;
-        font-size: 3rem;
+        font-size: clamp(1.8rem, 5vw, 3.5rem);
         font-weight: 700;
         text-align: center;
-        background: linear-gradient(90deg, #ff00ff, #800080);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0px;
+        color: #ff00ff;
+        text-shadow: 0 0 20px #ff00ff;
+        margin-bottom: 5px;
     }
     .sub-title {
         text-align: center;
-        font-size: 1.2rem;
+        font-size: clamp(0.9rem, 3vw, 1.2rem);
         color: #d100d1;
-        margin-bottom: 20px;
-        font-style: italic;
+        margin-bottom: 25px;
+        font-weight: 300;
     }
 
-    /* 3D Sphere Style */
+    /* 3D Balls Style */
     .ball {
-        width: 45px;
-        height: 45px;
+        width: 42px;
+        height: 42px;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        margin: 5px;
-        font-weight: bold;
-        font-size: 18px;
+        margin: 4px;
+        font-weight: 700;
+        font-size: 16px;
         color: white;
-        background: radial-gradient(circle at 15px 15px, #ff44ff, #4b0082);
-        box-shadow: inset -5px -5px 10px rgba(0,0,0,0.5), 5px 5px 15px rgba(0,0,0,0.3);
-        border: 1px solid rgba(255,255,255,0.2);
+        background: radial-gradient(circle at 12px 12px, #ff55ff, #4b0082);
+        box-shadow: inset -4px -4px 8px rgba(0,0,0,0.6), 4px 4px 10px rgba(0,0,0,0.4);
+        border: 1px solid rgba(255,255,255,0.15);
     }
     
-    .ball-white {
-        background: radial-gradient(circle at 15px 15px, #ffffff, #888888);
-        color: #4b0082;
+    .ball-motor {
+        width: 30px;
+        height: 30px;
+        background: radial-gradient(circle at 8px 8px, #ffffff, #800080);
+        color: #2b0035;
+        font-size: 12px;
+        margin: 2px;
     }
 
-    /* Input & Containers */
-    .stTextInput > div > div > input {
-        background-color: rgba(255, 255, 255, 0.05);
-        color: #ff00ff;
-        border: 2px solid #800080;
-        border-radius: 15px;
-        text-align: center;
-        font-size: 20px;
-    }
-
-    /* Simulation Motor UI */
+    /* Simulation Motor (The Big One) */
     .motor-container {
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 300px;
-        margin: 30px 0;
+        margin: 40px auto;
+        position: relative;
     }
-    .motor-circle {
-        width: 250px;
-        height: 250px;
-        border: 10px dashed #ff00ff;
+    .big-motor {
+        width: 280px;
+        height: 280px;
+        border: 8px double #ff00ff;
         border-radius: 50%;
         display: flex;
         flex-wrap: wrap;
-        padding: 20px;
         justify-content: center;
         align-items: center;
-        animation: spin 10s linear infinite;
-    }
-    .motor-circle.fast { animation: spin 0.5s linear infinite; }
-    .motor-circle.slow { animation: spin 3s linear infinite; }
-
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-
-    /* Buttons */
-    .stButton > button {
-        width: 100%;
-        background: linear-gradient(135deg, #800080 0%, #ff00ff 100%);
-        color: white;
-        border: none;
         padding: 15px;
-        border-radius: 12px;
-        font-weight: bold;
-        transition: 0.3s;
-        box-shadow: 0px 4px 15px rgba(255, 0, 255, 0.3);
+        background: rgba(255, 0, 255, 0.05);
+        box-shadow: 0 0 30px rgba(255, 0, 255, 0.2);
     }
-    .stButton > button:hover {
-        transform: scale(1.05);
-        box-shadow: 0px 6px 20px rgba(255, 0, 255, 0.5);
-    }
+    
+    .spin-slow { animation: rotate 10s linear infinite; }
+    .spin-fast { animation: rotate 0.5s linear infinite; }
 
-    /* Bet Cards */
-    .bet-card {
-        background: rgba(43, 0, 53, 0.8);
-        border: 1px solid #ff00ff;
-        border-radius: 15px;
-        padding: 15px;
-        margin-bottom: 15px;
-    }
+    @keyframes rotate { 100% { transform: rotate(360deg); } }
 
-    /* Footer */
-    .footer {
+    /* Inputs & Buttons */
+    .stTextInput input {
+        background-color: rgba(0, 0, 0, 0.5) !important;
+        color: #ff00ff !important;
+        border: 2px solid #800080 !important;
+        border-radius: 10px !important;
+        font-size: 22px !important;
         text-align: center;
-        font-size: 0.8rem;
-        color: #777;
+    }
+    
+    .stButton button {
+        background: linear-gradient(145deg, #800080, #ff00ff);
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 12px 24px !important;
+        font-weight: bold !important;
+        width: 100%;
+    }
+
+    /* Result Containers (Mobile Friendly) */
+    .result-box {
+        background: rgba(43, 0, 53, 0.7);
+        border: 1px solid #ff00ff;
+        border-radius: 12px;
+        padding: 12px;
+        margin: 10px 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    /* Footer Warning */
+    .legal-footer {
+        font-size: 0.75rem;
+        text-align: center;
+        color: #888;
+        border-top: 1px solid #444;
         margin-top: 50px;
-        padding: 20px;
-        border-top: 1px solid #333;
+        padding-top: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- ALGORITHM ENGINE ---
-def sovereign_filter(matrix_19):
-    # Sovereign Filters Constants
-    PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23]
-    FIBONACCI = [1, 2, 3, 5, 8, 13, 21]
-    
-    bets = []
-    # Generation logic limited for performance in UI
-    while len(bets) < 200:
-        combo = sorted(random.sample(matrix_19, 15))
-        
-        # Gates: 
-        # 1. Odd/Even (7:8 or 8:7)
-        odds = [n for n in combo if n % 2 != 0]
-        if len(odds) not in [7, 8]: continue
-        
-        # 2. Primes (5 or 6)
-        primes_count = len([n for n in combo if n in PRIMES])
-        if primes_count not in [5, 6]: continue
-        
-        # 3. Sum (180 - 210)
-        if not (180 <= sum(combo) <= 210): continue
-        
-        # 4. Fibonacci (3 - 5)
-        fib_count = len([n for n in combo if n in FIBONACCI])
-        if fib_count not in [3, 4, 5]: continue
+# --- 3. SESSION STATE INIT ---
+if 'processed' not in st.session_state: st.session_state.processed = False
+if 'final_list' not in st.session_state: st.session_state.final_list = []
 
-        if combo not in bets:
-            bets.append(combo)
-            
-    return bets
+# --- 4. ENGINE (Logic) ---
+def matrix_19_logic(draw_list):
+    # Fixed algorithmic logic for matrix 19
+    missing = [n for n in range(1, 26) if n not in draw_list]
+    # Strongest 9 from previous draw (simulated for UI)
+    strong = random.sample(draw_list, 9)
+    return sorted(missing + strong)
 
-# --- UI HEADER ---
-st.markdown('<h1 class="main-title">TOTOLOTO ALGORITMIA</h1>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">Jogue com inteligência</p>', unsafe_allow_html=True)
+def generate_filtered_bet(matrix):
+    # Simulates the 8 filters mentioned in road-map
+    while True:
+        bet = sorted(random.sample(matrix, 15))
+        # Basic filters check (Odd/Even, Sum)
+        odds = len([n for n in bet if n % 2 != 0])
+        if odds in [7, 8] and 180 <= sum(bet) <= 210:
+            return bet
 
-# Logo placeholder (Casino style emoji/text)
-st.markdown("<div style='text-align: center; font-size: 50px;'>🎰 💎 🎰</div>", unsafe_allow_html=True)
+# --- 5. HEADER ---
+st.markdown('<div class="main-title">TOTOLOTO ALGORITMIA</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Jogue com inteligência</div>', unsafe_allow_html=True)
 
-# --- INPUT SECTION ---
-with st.container():
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        last_draw_input = st.text_input("Último Sorteio (Insira 15 números separados por espaço):", key="draw_in", placeholder="Ex: 01 02 04 07...")
-    with col2:
-        st.write("##")
-        if st.button("Limpar 🗑️"):
-            st.session_state.draw_in = ""
-            st.rerun()
+# Central Logo
+st.markdown("<div style='text-align:center; margin-bottom:20px;'><span style='font-size:60px;'>💠</span></div>", unsafe_allow_html=True)
 
-    if last_draw_input:
-        try:
-            nums = [int(x) for x in last_draw_input.split()]
-            if len(nums) == 15:
-                ball_html = "".join([f'<div class="ball">{n:02}</div>' for n in sorted(nums)])
-                st.markdown(f'<div style="text-align: center; margin-top: 10px;">{ball_html}</div>', unsafe_allow_html=True)
-                st.session_state.valid_draw = nums
-            else:
-                st.warning("Por favor, insira exatamente 15 números.")
-        except:
-            st.error("Formato inválido.")
+# --- 6. INPUT SECTION ---
+input_col, clear_col = st.columns([5, 1])
+with input_col:
+    last_draw_raw = st.text_input("", placeholder="Insira o último sorteio (ex: 01 02 04...)", label_visibility="collapsed")
+with clear_col:
+    if st.button("🗑️"): 
+        st.session_state.processed = False
+        st.rerun()
 
-st.markdown("---")
-
-# --- FILTERING SECTION ---
-st.markdown("<h3 style='text-align: center;'>TELA DE FILTRAGEM (19 NÚMEROS)</h3>", unsafe_allow_html=True)
-col_a, col_b, col_c = st.columns([1, 2, 1])
-
-with col_b:
-    if st.button("EXECUTAR FILTRAGEM SOVIÉTICA"):
-        if 'valid_draw' in st.session_state:
-            with st.spinner("Motor de filtragem em movimento..."):
-                # Simulation of 15s Motor
-                motor_placeholder = st.empty()
-                for i in range(15):
-                    motor_placeholder.markdown(f'<div class="motor-container"><div class="motor-circle fast"><div style="color:#ff00ff; font-weight:bold; transform:rotate(-{i*24}deg)">ALGO</div></div></div>', unsafe_allow_html=True)
-                    time.sleep(1)
-                
-                # Logic to build Matrix 19
-                all_nums = list(range(1, 26))
-                out_nums = [n for n in all_nums if n not in st.session_state.valid_draw] # 10 missing
-                # Take 9 strongest from last draw (simulated logic)
-                strong_last = random.sample(st.session_state.valid_draw, 9)
-                st.session_state.matrix_19 = sorted(out_nums + strong_last)
-                
-                st.session_state.processed_bets = sovereign_filter(st.session_state.matrix_19)
-                st.success("✅ Têm sido filtrado com sucesso!")
+if last_draw_raw:
+    try:
+        draw_nums = [int(n) for n in last_draw_raw.split()]
+        if len(draw_nums) == 15:
+            balls_html = "".join([f'<div class="ball">{n:02}</div>' for n in sorted(draw_nums)])
+            st.markdown(f'<div style="text-align:center; padding:15px;">{balls_html}</div>', unsafe_allow_html=True)
+            st.session_state.valid_draw = draw_nums
         else:
-            st.error("Insira o último sorteio primeiro.")
+            st.warning("⚠️ Insira 15 números.")
+    except:
+        st.error("⚠️ Erro no formato.")
 
+# --- 7. FILTERING SECTION ---
 st.markdown("---")
-
-# --- SIMULATION SECTION ---
-st.markdown("<h3 style='text-align: center;'>MOTOR DE SIMULAÇÃO</h3>", unsafe_allow_html=True)
-
-# Visual Motor (Idle)
-motor_ui = st.empty()
-motor_ui.markdown('<div class="motor-container"><div class="motor-circle"><div class="ball ball-white">X</div>' * 5 + '</div></div>', unsafe_allow_html=True)
-
-# Bet Selector
-num_bets = st.selectbox("Quantidade de Apostas para Simular:", [10, 20, 30, 40, 50, 100, 200])
-
-if st.button("INICIAR SIMULAÇÃO 🚀"):
-    if 'processed_bets' in st.session_state:
-        results_area = st.empty()
-        final_bets = random.sample(st.session_state.processed_bets, min(num_bets, len(st.session_state.processed_bets)))
-        
-        # Animation Logic
-        for idx, bet in enumerate(final_bets):
-            # Fast Spin
-            motor_ui.markdown('<div class="motor-container"><div class="motor-circle fast"></div></div>', unsafe_allow_html=True)
-            time.sleep(4.5)
-            # Slow Spin + Pop Out
-            motor_ui.markdown('<div class="motor-container"><div class="motor-circle slow"></div></div>', unsafe_allow_html=True)
-            time.sleep(2)
-            
-            # Show bet
-            st.session_state[f'res_{idx}'] = bet
-            
-        st.balloons()
-    else:
-        st.error("Execute a filtragem antes da simulação.")
-
-# --- DISPLAY RESULTS ---
-if 'processed_bets' in st.session_state:
-    st.markdown("### 📋 Resultados Gerados")
-    all_text = ""
+filter_col1, filter_col2, filter_col3 = st.columns([1, 2, 1])
+with filter_col2:
+    st.markdown("<h4 style='text-align:center;'>Telas de Filtração (19 Números)</h4>", unsafe_allow_html=True)
+    f_btn_col, f_motor_col = st.columns([3, 1])
+    with f_btn_col:
+        filter_btn = st.button("EXECUTAR TAREFA")
+    with f_motor_col:
+        motor_placeholder = st.empty()
     
-    for i in range(num_bets):
-        if f'res_{i}' in st.session_state:
-            bet = st.session_state[f'res_{i}']
-            bet_str = " ".join([f"{n:02}" for n in bet])
-            all_text += bet_str + "\n"
-            
-            with st.container():
-                c1, c2 = st.columns([5, 1])
-                with c1:
-                    balls_html = "".join([f'<div class="ball">{n:02}</div>' for n in bet])
-                    st.markdown(f'<div class="bet-card">{balls_html}</div>', unsafe_allow_html=True)
-                with c2:
-                    st.write("##")
-                    st.button("Copiar", key=f"btn_{i}", on_click=lambda s=bet_str: st.write(f"Copiado: {s}"))
+    if filter_btn:
+        if 'valid_draw' in st.session_state:
+            # Small motor animation
+            for _ in range(15):
+                motor_placeholder.markdown('<div style="width:30px; height:30px; border:3px solid #ff00ff; border-radius:50%; border-top:3px solid transparent; animation: rotate 0.5s linear infinite;"></div>', unsafe_allow_html=True)
+                time.sleep(1)
+            motor_placeholder.empty()
+            st.session_state.m19 = matrix_19_logic(st.session_state.valid_draw)
+            st.session_state.processed = True
+            st.markdown("<p style='color:#00ff00; text-align:center;'>✅ Têm sido filtrado com sucesso!</p>", unsafe_allow_html=True)
+        else:
+            st.error("⚠️ Adicione o sorteio primeiro.")
 
+# --- 8. BIG MOTOR & SIMULATION ---
+st.markdown("---")
+# The Big Wheel UI
+wheel_area = st.empty()
+def draw_wheel(style="spin-slow"):
+    balls_inside = "".join(['<div class="ball ball-motor">X</div>' for _ in range(25)])
+    wheel_area.markdown(f'<div class="motor-container"><div class="big-motor {style}">{balls_inside}</div></div>', unsafe_allow_html=True)
+
+draw_wheel() # Initial state
+
+num_bets = st.selectbox("Escolha o número de رهانات:", [10, 20, 30, 40, 50, 100, 200], index=0)
+
+if st.button("محاكاة"):
+    if st.session_state.processed:
+        st.session_state.final_list = []
+        # Simulation Logic
+        for i in range(num_bets):
+            # 4.5s Fast
+            draw_wheel("spin-fast")
+            time.sleep(4.5)
+            # 2s Slow (Pop-out effect)
+            draw_wheel("spin-slow")
+            time.sleep(2)
+            # Generate bet
+            st.session_state.final_list.append(generate_filtered_bet(st.session_state.m19))
+        st.rerun() # Refresh to show results
+    else:
+        st.error("⚠️ Execute a filtração antes da simulação.")
+
+# --- 9. RESULTS ---
+if st.session_state.final_list:
+    st.markdown("### 🏆 Apostas Geradas")
+    full_output = ""
+    for idx, b in enumerate(st.session_state.final_list):
+        b_str = " ".join([f"{n:02}" for n in b])
+        full_output += b_str + "\n"
+        
+        # Display Box with Copy Icon
+        col_res, col_copy = st.columns([5, 1])
+        with col_res:
+            res_balls = "".join([f'<div class="ball">{n:02}</div>' for n in b])
+            st.markdown(f'<div class="result-box">{res_balls}</div>', unsafe_allow_html=True)
+        with col_copy:
+            st.write("##")
+            st.button("📋", key=f"copy_{idx}", help="Copiar Aposta")
+
+    # Final Actions
     st.markdown("---")
-    # Bulk Actions
-    down_col1, down_col2, down_col3 = st.columns(3)
-    with down_col1:
-        st.download_button("Baixar TXT 📥", all_text, file_name="apostas_algormitia.txt")
-    with down_col2:
-        if st.button("Copiar Todos 📋"):
-            st.code(all_text)
-    with down_col3:
-        if st.button("Reiniciar Painel 🔄"):
-            for key in list(st.session_state.keys()): del st.session_state[key]
+    c1, c2, c3 = st.columns(3)
+    with c1: st.download_button("Baixar TXT", full_output, file_name="totoloto.txt")
+    with c2: 
+        if st.button("Limpar Tudo"):
+            st.session_state.final_list = []
             st.rerun()
+    with c3: st.code(full_output, language='text')
 
-# --- FOOTER ---
+# --- 10. LEGAL FOOTER ---
 st.markdown(f"""
-    <div class="footer">
-        <p>⚠️ AVISO: USO PROIBIDO PARA MENORES DE 21 ANOS.</p>
-        <p>Este aplicativo é uma ferramenta estatística e educacional. Não garante ganhos ou lucros.</p>
-        <p>JOGUE COM RESPONSABILIDADE. © 2026 TOTOLOTO ALGORITMIA</p>
+    <div class="legal-footer">
+        <p>⚠️ PROIBIDO PARA MENORES DE 21 ANOS.</p>
+        <p>Este aplicativo é estritamente estatístico e educativo. Não garantimos nem prometemos lucros. Jogue com responsabilidade.</p>
+        <p>TOTOLOTO ALGORITMIA © 2026</p>
     </div>
 """, unsafe_allow_html=True)
