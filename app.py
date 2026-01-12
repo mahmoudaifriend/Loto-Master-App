@@ -5,7 +5,7 @@ import random
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="TOTOLOTO ALGORITMIA", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. CSS PROFISSIONAL (CASINO & ANIMAÇÃO) ---
+# --- 2. CSS PROFISSIONAL (ESTILO CASINO) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;700&display=swap');
@@ -23,7 +23,7 @@ st.markdown("""
         text-align: center;
         color: #ff00ff;
         text-shadow: 0 0 15px #ff00ff;
-        margin-bottom: 0px;
+        margin-bottom: 5px;
     }
 
     .sub-title {
@@ -34,7 +34,6 @@ st.markdown("""
         letter-spacing: 2px;
     }
 
-    /* Esferas 3D */
     .ball {
         width: 38px;
         height: 38px;
@@ -51,7 +50,6 @@ st.markdown("""
         border: 1px solid rgba(255,255,255,0.2);
     }
 
-    /* O Globo (O Grande Motor) */
     .motor-outer {
         display: flex;
         justify-content: center;
@@ -85,7 +83,6 @@ st.markdown("""
         100% { transform: rotate(360deg); }
     }
 
-    /* Slots de Resultados */
     .bet-card {
         background: rgba(20, 20, 20, 0.9);
         border: 1px solid #4b0082;
@@ -103,7 +100,6 @@ st.markdown("""
         color: white !important;
         border-radius: 5px !important;
         font-weight: bold !important;
-        width: 100%;
     }
 
     .legal-footer {
@@ -140,16 +136,15 @@ def generate_sovereign_bet(matrix):
 # --- 4. SESSION STATE ---
 if 'matrix' not in st.session_state: st.session_state.matrix = []
 if 'sim_results' not in st.session_state: st.session_state.sim_results = []
-if 'current_view' not in st.session_state: st.session_state.current_view = [[] for _ in range(20)]
+if 'current_view' not in st.session_state: st.session_state.current_view = []
 
 # --- 5. INTERFACE ---
 st.markdown('<div class="main-title">TOTOLOTO ALGORITMIA</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">JOGUE COM INTELIGÊNCIA</div>', unsafe_allow_html=True)
 
-# Input
 col_in, col_clr = st.columns([5, 1])
 with col_in:
-    draw_input = st.text_input("Último Sorteio:", placeholder="01 02 03...", label_visibility="collapsed")
+    draw_input = st.text_input("Último Sorteio:", placeholder="01 02 04...", label_visibility="collapsed")
 with col_clr:
     if st.button("🗑️"):
         st.session_state.clear()
@@ -165,7 +160,6 @@ if draw_input:
         else: st.warning("Insira 15 números.")
     except: st.error("Erro no formato.")
 
-# Filtro (Small Motor)
 st.markdown("---")
 c1, c2, c3 = st.columns([1, 2, 1])
 with c2:
@@ -183,7 +177,6 @@ with c2:
             st.success("✅ Têm sido filtrado com sucesso!")
         else: st.error("Insira o sorteio primeiro.")
 
-# O Globo (Big Motor)
 st.markdown("---")
 motor_area = st.empty()
 def update_big_motor(speed="spin-slow"):
@@ -194,7 +187,40 @@ update_big_motor()
 
 qty = st.selectbox("Quantidade de Apostas:", [10, 20])
 sim_btn = st.button("SIMULAR AGORA 🚀")
-
 results_placeholder = st.empty()
 
 if sim_btn:
+    if st.session_state.matrix:
+        # Pre-geração usando o Sistema Soberano
+        st.session_state.sim_results = [generate_sovereign_bet(st.session_state.matrix) for _ in range(qty)]
+        st.session_state.current_view = [[] for _ in range(qty)]
+        
+        for ball_idx in range(15):
+            # Fase 1: Rápida (4.5s)
+            update_big_motor("spin-fast")
+            time.sleep(4.5)
+            
+            # Fase 2: Lenta/Ejeção (2s)
+            update_big_motor("spin-slow")
+            
+            # Atualiza visualização das bolas
+            for bet_idx in range(qty):
+                st.session_state.current_view[bet_idx].append(st.session_state.sim_results[bet_idx][ball_idx])
+            
+            with results_placeholder.container():
+                for i in range(qty):
+                    current_balls = "".join([f'<div class="ball">{n:02}</div>' for n in sorted(st.session_state.current_view[i])])
+                    st.markdown(f'<div class="bet-card"><b>#{i+1:02}</b> &nbsp; {current_balls}</div>', unsafe_allow_html=True)
+            
+            time.sleep(2)
+        st.balloons()
+    else:
+        st.error("Execute a filtragem primeiro.")
+
+st.markdown("""
+<div class="legal-footer">
+    <p>⚠️ PROIBIDO PARA MENORES DE 21 ANOS.</p>
+    <p>Ferramenta estatística e educativa. Sem garantia de lucro. Jogue com responsabilidade.</p>
+    <p>TOTOLOTO ALGORITMIA © 2026</p>
+</div>
+""", unsafe_allow_html=True)
