@@ -6,7 +6,7 @@ import requests
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="TOTOLOTO ALGORITMIA", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. CSS PROFISSIONAL (ESTILO CASINO PURA) ---
+# --- 2. CSS PROFISSIONAL (ESTILO CASINO) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;700&display=swap');
@@ -34,26 +34,22 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. DADOS HISTÓRICOS (INJETADOS) ---
+# --- 3. DADOS HISTÓRICOS ---
 MOST_FREQUENT = [20, 25, 10, 11, 13, 24, 14, 1, 4, 3, 12, 5, 2, 22, 15, 9, 19, 18, 21, 7, 17, 6, 23, 8, 16]
 MOST_DELAYED = [19, 5, 11, 14, 10, 22, 24, 12, 6, 3]
 
-# --- 4. FUNÇÃO REAL-TIME API ---
+# --- 4. FUNÇÃO API ---
 def fetch_real_latest_draw():
     try:
-        # API Oficial da Caixa (Proxy/Mirror)
         response = requests.get("https://servicebus2.caixa.gov.br/portaldeloterias/api/lotofacil", timeout=5)
         data = response.json()
         return [int(n) for n in data['dezenas']]
     except:
-        # Fallback se a API estiver fora do ar
         return [1, 2, 4, 7, 8, 9, 13, 15, 16, 17, 18, 20, 21, 23, 25]
 
-# --- 5. LÓGICA DO SISTEMA SOBERANO (MATRIZ 19) ---
+# --- 5. LÓGICA DO SISTEMA SOBERANO ---
 def get_sovereign_matrix(latest_draw):
-    # Prioridade 1: Os 10 mais atrasados (conforme sua lista)
     matrix = MOST_DELAYED.copy()
-    # Prioridade 2: Completar com os mais frequentes históricos que não estão na lista
     for num in MOST_FREQUENT:
         if num not in matrix:
             matrix.append(num)
@@ -78,15 +74,15 @@ if 'matrix' not in st.session_state: st.session_state.matrix = []
 if 'sim_results' not in st.session_state: st.session_state.sim_results = []
 if 'current_view' not in st.session_state: st.session_state.current_view = []
 
-# --- 7. INTERFACE USUÁRIO ---
+# --- 7. INTERFACE ---
 st.markdown('<div class="main-title">TOTOLOTO ALGORITMIA</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">JOGUE COM INTELIGÊNCIA</div>', unsafe_allow_html=True)
 
 if st.button("🔄 SINCRONIZAR COM LOTERIAS CAIXA"):
-    with st.spinner("Conectando..."):
+    with st.spinner("Sincronizando..."):
         latest = fetch_real_latest_draw()
         st.session_state.matrix = get_sovereign_matrix(latest)
-        st.success(f"✅ Conectado! Matriz 19 otimizada com sucesso.")
+        st.success("✅ Matriz 19 Otimizada!")
 
 st.markdown("---")
 qty = st.selectbox("Quantidade de Apostas:", [10, 20])
@@ -106,40 +102,43 @@ if sim_btn:
         st.session_state.current_view = [[] for _ in range(qty)]
         
         for ball_idx in range(15):
-            update_motor("spin-fast") # 4.5s
+            update_motor("spin-fast")
             time.sleep(4.5)
-            update_motor("spin-slow") # 2s
+            update_motor("spin-slow")
             
             for i in range(qty):
                 st.session_state.current_view[i].append(st.session_state.sim_results[i][ball_idx])
             
             with results_placeholder.container():
                 for i in range(qty):
+                    # CORREÇÃO AQUI: balls_res é o nome correto
                     balls_res = "".join([f'<div class="ball">{n:02}</div>' for n in sorted(st.session_state.current_view[i])])
-                    st.markdown(f'<div class="bet-card"><b>#{i+1:02}</b> &nbsp; {current_balls}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="bet-card"><b>#{i+1:02}</b> &nbsp; {balls_res}</div>', unsafe_allow_html=True)
             time.sleep(2)
         st.balloons()
-    else: st.error("Sincronize os dados primeiro.")
+    else: st.error("Sincronize primeiro!")
 
-# --- 8. CONFIRMAÇÃO E FERRAMENTAS ---
+# --- 8. FERRAMENTAS ---
 if st.session_state.sim_results:
     st.markdown("---")
     col_y, col_n = st.columns(2)
     with col_y:
         st.markdown('<div class="confirm-yes">✅ Sim, confirmo</div>', unsafe_allow_html=True)
-        st.button("CONFIRMAR JOGO", key="c_y")
+        st.button("CONFIRMAR JOGO", key="cy")
     with col_n:
         st.markdown('<div class="confirm-no">❌ Não, não confirmo</div>', unsafe_allow_html=True)
-        st.button("CANCELAR JOGO", key="c_n")
+        if st.button("CANCELAR JOGO", key="cn"):
+            st.session_state.sim_results = []
+            st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    c_clear, c_dl = st.columns(2)
-    with c_clear:
+    c_clr, c_dl = st.columns(2)
+    with c_clr:
         if st.button("🧹 LIMPAR TUDO"):
             st.session_state.clear()
             st.rerun()
     with c_dl:
-        output = "\n".join([" ".join([f"{n:02}" for n in b]) for b in st.session_state.sim_results])
-        st.download_button("📥 BAIXAR RESULTADOS (.TXT)", output, file_name="lotofacil_soberana.txt")
+        out = "\n".join([" ".join([f"{n:02}" for n in b]) for b in st.session_state.sim_results])
+        st.download_button("📥 BAIXAR TXT", out, file_name="lotofacil_final.txt")
 
-st.markdown('<div class="legal-footer"><p>⚠️ PROIBIDO PARA MENORES DE 21 ANOS.</p><p>Estatística e educação. © 2026 TOTOLOTO ALGORITMIA</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="legal-footer"><p>⚠️ PROIBIDO PARA MENORES DE 21 ANOS.</p><p>© 2026 TOTOLOTO ALGORITMIA</p></div>', unsafe_allow_html=True)
