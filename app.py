@@ -1,194 +1,174 @@
 import streamlit as st
 import time
 import random
-import requests
-from collections import Counter
+import itertools
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="TOTOLOTO ALGORITMIA PRO", layout="wide", initial_sidebar_state="collapsed")
+# --- 1. PAGE CONFIGURATION ---
+st.set_page_config(page_title="TOTOLOTO PRO", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 2. CSS AVANÇADO (RESPONSIVO E REALISTA) ---
+# --- 2. PREMIUM PURPLE NEON CSS (LOTOFÁCIL VIBE) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;700&display=swap');
     
-    /* Background Azul Claro Profissional */
     .stApp { 
-        background: linear-gradient(180deg, #e0f2f1 0%, #b3e5fc 100%); 
-        color: #01579b; 
+        background: radial-gradient(circle at center, #2b0035 0%, #000000 100%); 
+        color: #ffffff; 
         font-family: 'Roboto', sans-serif; 
     }
     
-    .main-title { font-family: 'Orbitron', sans-serif; font-size: 2.5rem; text-align: center; color: #0277bd; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); margin-bottom: 0px; }
-    .sub-title { text-align: center; font-size: 0.8rem; color: #01579b; margin-bottom: 20px; letter-spacing: 1px; font-weight: bold; }
-    
-    /* BOLAS 3D REALISTAS */
-    .ball { 
-        width: 35px; height: 35px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 2px; 
-        font-weight: 800; font-size: 13px; color: white; 
-        background: radial-gradient(circle at 35% 35%, #4fc3f7, #0288d1 45%, #01579b 90%);
-        box-shadow: inset -3px -3px 8px rgba(0,0,0,0.5), 0 3px 6px rgba(0,0,0,0.3);
-        transition: all 0.5s ease;
+    .main-title { 
+        font-family: 'Orbitron', sans-serif; 
+        font-size: 3.5rem; 
+        text-align: center; 
+        color: #fff; 
+        text-shadow: 0 0 10px #bf00ff, 0 0 20px #bf00ff, 0 0 40px #bf00ff; 
+        margin-bottom: 5px; 
     }
 
-    /* GLOBO REALISTA COM GRAVIDADE */
+    /* THE GLOBO - FIXED ROTATION & VISIBILITY */
     .motor-outer { 
-        display: flex; justify-content: center; align-items: center; margin: 20px auto; 
-        width: 250px; height: 250px; border: 6px solid #0288d1; border-radius: 50%; 
-        background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(5px); 
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden; position: relative; 
+        display: flex; justify-content: center; align-items: center; 
+        margin: 30px auto; width: 300px; height: 300px; 
+        border: 5px solid #bf00ff; border-radius: 50%; 
+        background: rgba(191, 0, 255, 0.05); 
+        box-shadow: 0 0 30px rgba(191, 0, 255, 0.4), inset 0 0 50px #000; 
+        position: relative; overflow: hidden;
     }
+
     .motor-inner { 
-        width: 100%; height: 100%; display: flex; flex-wrap: wrap; 
-        justify-content: center; align-items: flex-end; padding: 20px; 
+        width: 100%; height: 100%; 
+        display: flex; flex-wrap: wrap; 
+        justify-content: center; align-items: center; 
+        padding: 20px;
+        animation: rotateGlobe 4s linear infinite;
     }
-    
-    /* Animação de Acúmulo no Fundo (Gravity) */
-    .ball-idle { transform: translateY(80px); opacity: 0.8; }
-    
-    /* Animação de Caos (Spin Fast) */
-    @keyframes chaos {
-        0% { transform: translate(0,0) rotate(0deg); }
-        25% { transform: translate(20px, -50px) rotate(90deg); }
-        50% { transform: translate(-20px, -100px) rotate(180deg); }
-        75% { transform: translate(30px, -40px) rotate(270deg); }
-        100% { transform: translate(0,0) rotate(360deg); }
-    }
-    .spin-active .ball { animation: chaos 0.3s infinite linear; }
-    
-    /* Animação de Desaceleração (Spin Slow) */
-    @keyframes slow-chaos {
-        0% { transform: translate(0,0); }
-        100% { transform: translate(5px, 10px); }
-    }
-    .spin-slow .ball { animation: slow-chaos 1.5s infinite alternate ease-in-out; }
 
-    /* GRID RESPONSIVO */
+    @keyframes rotateGlobe {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .ball { 
+        width: 32px; height: 32px; border-radius: 50%; 
+        display: inline-flex; align-items: center; justify-content: center; 
+        margin: 4px; font-weight: bold; font-size: 13px; color: white; 
+        background: radial-gradient(circle at 30% 30%, #e680ff, #bf00ff 50%, #4b0082 100%);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset -2px -2px 5px rgba(0,0,0,0.5);
+    }
+
+    /* SELECTION GRID */
     .grid-container { 
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(45px, 1fr)); 
-        gap: 5px; background: white; padding: 15px; border-radius: 15px; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+        display: grid; grid-template-columns: repeat(5, 1fr); 
+        gap: 8px; max-width: 450px; margin: 20px auto; 
     }
 
+    /* BET CARDS */
     .bet-card { 
-        background: white; border-radius: 12px; padding: 10px; margin-bottom: 8px; 
-        display: flex; flex-wrap: wrap; align-items: center; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid #0288d1;
+        background: rgba(255, 255, 255, 0.05); 
+        border: 1px solid rgba(191, 0, 255, 0.3); 
+        border-radius: 12px; padding: 15px; margin-bottom: 10px; 
+        display: flex; flex-wrap: wrap; justify-content: center;
+        transition: 0.3s;
     }
-    .strong-bet { border-left: 5px solid #ff9800; background: #fff8e1; }
+    .bet-card:hover { border-color: #bf00ff; box-shadow: 0 0 15px rgba(191, 0, 255, 0.2); }
 
-    /* Estilo do Botão Valendo */
+    /* BUTTONS */
     div.stButton > button { 
-        background: #0288d1 !important; color: white !important; 
-        width: 100%; font-size: 1.5rem !important; font-weight: bold !important; 
-        border-radius: 50px; padding: 15px; border: none; box-shadow: 0 4px 15px rgba(2, 136, 209, 0.4);
+        background: linear-gradient(45deg, #4b0082, #bf00ff) !important; 
+        color: white !important; border: none !important; 
+        padding: 12px 24px !important; font-weight: bold !important; 
+        border-radius: 8px !important; width: 100%;
     }
-    
-    /* Fireworks Effect Placeholder */
-    .fireworks { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. ALGORITMO DE BLOCOS (LÓGICA DA MÁQUINA) ---
-def attack_blocks_engine(fixed_backbone, qty=10):
-    triplets = [[7, 8, 9], [16, 17, 19], [4, 5, 6], [21, 22, 23]]
-    pairs = [[13, 15], [10, 12], [23, 24], [3, 5]]
-    all_bets = []
-    while len(all_bets) < qty:
-        current_bet = set(fixed_backbone)
-        random.shuffle(triplets); random.shuffle(pairs)
-        for tri in triplets:
-            if len(current_bet) + 3 <= 15: current_bet.update(tri); break
-        for pr in pairs:
-            if len(current_bet) + 2 <= 15: current_bet.update(pr)
-        while len(current_bet) < 15: current_bet.add(random.randint(1, 25))
-        final_list = sorted(list(current_bet))
+# --- 3. SOVEREIGN LOGIC (12 TO 10) ---
+def generate_sovereign_bets(fixed_12, qty=10):
+    all_nums = set(range(1, 26))
+    pool = list(all_nums - set(fixed_12))
+    
+    # Generate all 286 combinations of the remaining 3 numbers
+    combos = list(itertools.combinations(pool, 3))
+    valid_candidates = []
+    
+    for c in combos:
+        bet = sorted(list(fixed_12) + list(c))
+        # Filter 1: Parity (7 or 8 Odds)
+        odds = len([n for n in bet if n % 2 != 0])
+        # Filter 2: Sum Range (180 - 210)
+        s_val = sum(bet)
+        # Filter 3: Primes (5 or 6)
+        primes = len([n for n in bet if n in [2, 3, 5, 7, 11, 13, 17, 19, 23]])
         
-        # Filtro de Sequência Máxima 4
-        seq_ok = True
-        for i in range(len(final_list)-4):
-            if final_list[i+4] == final_list[i] + 4: seq_ok = False; break
-        
-        if seq_ok and len([n for n in final_list if n % 2 != 0]) in [7, 8]:
-            if final_list not in all_bets: all_bets.append(final_list)
-    return all_bets
+        if odds in [7, 8] and 180 <= s_val <= 210 and primes in [5, 6]:
+            valid_candidates.append(bet)
+    
+    if len(valid_candidates) < qty:
+        # If filters are too tight, relax them slightly to meet qty
+        return [sorted(list(fixed_12) + list(random.sample(pool, 3))) for _ in range(qty)]
+    
+    return random.sample(valid_candidates, qty)
 
-# --- 4. INTERFACE ---
-st.markdown('<div class="main-title">💎 TOTOLOTO ALGORITMIA 💎</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">محاكي السحب العشوائي بنظام الكتل الهجومية</div>', unsafe_allow_html=True)
+# --- 4. APP INTERFACE ---
+st.markdown('<div class="main-title">💎 TOTOLOTO PRO 💎</div>', unsafe_allow_html=True)
+st.markdown('<p style="text-align:center; opacity:0.6;">SOVEREIGN ALGORITHMIC SYSTEM</p>', unsafe_allow_html=True)
 
-# Grid de Seleção (Responsive)
-st.markdown('<p style="font-weight:bold; color:#01579b;">اختر هيكلك الأساسي (HAYKAL):</p>', unsafe_allow_html=True)
+# Globe Visualization
+motor_placeholder = st.empty()
+def render_globe(active=False):
+    anim_class = "chaos-active" if active else ""
+    balls_html = "".join([f'<div class="ball">{random.randint(1,25):02}</div>' for _ in range(12)])
+    motor_placeholder.markdown(f'''
+        <div class="motor-outer">
+            <div class="motor-inner">{balls_html}</div>
+        </div>
+    ''', unsafe_allow_html=True)
+
+render_globe()
+
+# User Selection Grid
+st.markdown('<p style="text-align:center; color:#bf00ff;">SELECT YOUR 12 CONFIRMED NUMBERS:</p>', unsafe_allow_html=True)
 cols = st.columns(5)
-selected_nums = []
+selected = []
 for i in range(1, 26):
     with cols[(i-1)%5]:
-        if st.checkbox(f"{i:02}", key=f"n_{i}"): selected_nums.append(i)
-
-# Quantidade de Apostas (Visível abaixo do grid)
-qty = st.selectbox("عدد الرهانات المطلوب توليدها:", [10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+        if st.checkbox(f"{i:02}", key=f"num_{i}"):
+            selected.append(i)
 
 st.markdown("---")
-motor_placeholder = st.empty()
-valendo_text = st.empty()
+col_opt, col_btn = st.columns([1, 2])
+with col_opt:
+    bet_qty = st.selectbox("Quantity:", [10, 20])
+with col_btn:
+    run_btn = st.button("START EXTRACTION 🚀")
 
-def render_globe(state="idle"):
-    chaos_class = "spin-active" if state == "fast" else ("spin-slow" if state == "slow" else "ball-idle")
-    balls_html = "".join([f'<div class="ball {chaos_class}">{random.randint(1,25)}</div>' for _ in range(20)])
-    motor_placeholder.markdown(f'<div class="motor-outer"><div class="motor-inner">{balls_html}</div></div>', unsafe_allow_html=True)
-
-render_globe("idle")
-
-# --- 5. LOGICA DE SORTEIO (VALENDO) ---
-if st.button("VALENDO 🚀"):
-    if not selected_nums:
-        st.error("⚠️ الرجاء اختيار أرقام الهيكل أولاً!")
+if run_btn:
+    if len(selected) != 12:
+        st.error(f"Error: Please select exactly 12 numbers. You have selected {len(selected)}.")
     else:
-        results = attack_blocks_engine(selected_nums, qty)
-        st.session_state.results = results
-        current_display = [[] for _ in range(qty)]
+        # Simulation phase
+        render_globe(active=True)
+        time.sleep(3)
         
-        list_placeholder = st.empty()
+        results = generate_sovereign_bets(selected, bet_qty)
+        st.session_state.final_results = results
         
-        # 15 Cycles Loop
-        for ball_turn in range(15):
-            valendo_text.markdown(f'<h2 style="text-align:center; color:#0288d1;">VALENDO... (Bola {ball_turn+1}/15)</h2>', unsafe_allow_html=True)
-            
-            # Fast Rotation (4.5s)
-            render_globe("fast")
-            time.sleep(4.5)
-            
-            # Slow Rotation & Ball Drop (4.5s)
-            render_globe("slow")
-            time.sleep(4.5)
-            
-            # Update each bet with its next number
-            for i in range(qty):
-                current_display[i].append(results[i][ball_turn])
-            
-            # Display Progress
-            with list_placeholder.container():
-                # Top 5 Strong Bets
-                st.markdown("### 🔥 أقوى 5 رهانات (المسار الذهبي):")
-                for i in range(5):
-                    balls_html = "".join([f'<div class="ball">{n:02}</div>' for n in sorted(current_display[i])])
-                    st.markdown(f'<div class="bet-card strong-bet"><b>⭐ {i+1:02}</b> &nbsp; {balls_html}</div>', unsafe_allow_html=True)
-                
-                st.markdown(f"### 📋 بقية الرهانات ({qty-5}):")
-                for i in range(5, qty):
-                    balls_html = "".join([f'<div class="ball">{n:02}</div>' for n in sorted(current_display[i])])
-                    st.markdown(f'<div class="bet-card"><b>#{i+1:02}</b> &nbsp; {balls_html}</div>', unsafe_allow_html=True)
+        # Display results
+        for i, bet in enumerate(results):
+            balls_html = "".join([f'<div class="ball">{n:02}</div>' for n in bet])
+            st.markdown(f'<div class="bet-card"><b>#{i+1:02}</b> &nbsp; {balls_html}</div>', unsafe_allow_html=True)
+        st.balloons()
 
-        valendo_text.empty()
-        render_globe("idle")
-        
-        # Fireworks Celebration (Using balloons as standard, custom CSS firework can be added)
-        st.snow() # Fireworks alternative in Streamlit
-        st.success("✅ تم اكتمال محاكاة السحب بنجاح!")
+# Reset and Download
+if 'final_results' in st.session_state:
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("🧹 CLEAR SYSTEM"):
+            st.session_state.clear()
+            st.rerun()
+    with c2:
+        out_text = "\n".join([" ".join([f"{n:02}" for n in b]) for b in st.session_state.final_results])
+        st.download_button("📥 DOWNLOAD RESULTS", out_text, file_name="totoloto_results.txt")
 
-# --- 6. EXPORT ---
-if 'results' in st.session_state:
-    out_txt = "\n".join([" ".join([f"{n:02}" for n in b]) for b in st.session_state.results])
-    st.download_button("📥 تحميل كافة الرهانات (TXT)", out_txt, file_name="lotofacil_sniper.txt")
-
-st.markdown('<div style="text-align:center; margin-top:30px; opacity:0.6;">© 2026 TOTOLOTO PRO - BRASIL</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; margin-top:50px; opacity:0.3; font-size:0.8rem;">© 2026 TOTOLOTO PRO SYSTEM</div>', unsafe_allow_html=True)
