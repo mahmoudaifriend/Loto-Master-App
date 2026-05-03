@@ -1029,3 +1029,30 @@ def process():
 # ---------------------------------------------------------
 if __name__ == '__main__':
     app.run(debug=True)
+
+from flask import Flask, render_template, request, jsonify
+import os
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/api/process', methods=['POST'])
+def process():
+    try:
+        user_data = request.json
+        # 'engine' is the instance of your logic class defined above in your file
+        results = engine.gerar_25_jogos(
+            anchors=user_data.get('anchors'),
+            n3_data=user_data.get('n3'),
+            quantity=int(user_data.get('quantity', 25))
+        )
+        return jsonify({"status": "success", "jogos": results})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
