@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOTOLOTO PRO - BRASIL</title>
+    <style>
+        :root {
+            --bg: #1a0033;
+            --purple-3d: radial-gradient(circle at 15px 15px, #8a2be2, #4b0082);
+            --gold-3d: radial-gradient(circle at 15px 15px, #ffd700, #b8860b);
+            --glass: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Basic Reset and Layout */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            background-color: var(--bg);
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        /* 1. LOGO AND PROBABILITIES */
+        header h1 { font-size: 2.5rem; letter-spacing: 12px; margin: 10px 0; font-weight: 900; }
+        .prob-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 1px solid #8a2be2;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #probCount { color: #00ffcc; font-weight: bold; font-family: monospace; font-size: 1.2rem; }
+
+        /* 2. 3D SELECTION GRID */
+        .selection-title { font-size: 0.9rem; margin-bottom: 10px; color: #ccc; }
+        .ball-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 25px;
+            max-width: 350px;
+        }
+        .ball-3d {
+            width: 50px; height: 50px; border-radius: 50%;
+            background: var(--purple-3d);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: white; cursor: pointer;
+            box-shadow: 4px 4px 8px rgba(0,0,0,0.6);
+            transition: 0.2s; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .ball-3d.selected { background: var(--gold-3d); color: #1a0033; transform: scale(1.1); box-shadow: 0 0 15px var(--gold-3d); }
+
+        /* 3. HISTORICAL DATA (N-3) */
+        .n3-section { background: var(--glass); padding: 15px; border-radius: 15px; width: 100%; max-width: 400px; margin-bottom: 20px; }
+        .n3-row { margin-bottom: 10px; text-align: center; }
+        .n3-inputs { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+        .n3-ball-input { width: 28px; height: 28px; background: #2b004d; border: 1px solid #8a2be2; color: white; text-align: center; border-radius: 4px; font-size: 0.8rem; }
+
+        /* 4. GAME QUANTITY SELECTOR */
+        .qty-box { margin-bottom: 25px; }
+        select { background: #4b0082; color: white; padding: 10px 20px; border-radius: 8px; border: 2px solid white; font-weight: bold; }
+
+        /* 5. MACHINE (TUBES + GLOBE) */
+        .machine-stage { width: 100%; max-width: 350px; text-align: center; position: relative; }
+        .tubes-container { display: flex; justify-content: space-around; margin-bottom: -10px; }
+        .tube-glass { width: 140px; height: 30px; background: var(--glass); border: 1px solid rgba(255,255,255,0.2); border-radius: 0 0 15px 15px; }
+        
+        .globo-sphere {
+            width: 260px; height: 260px; border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.2);
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1), transparent);
+            margin: 0 auto 20px; position: relative; overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
+        }
+        .nozzle { width: 50px; height: 30px; background: #333; margin: -25px auto 20px; border-radius: 0 0 10px 10px; }
+
+        .ball-kinetic { position: absolute; width: 20px; height: 20px; background: var(--purple-3d); border-radius: 50%; }
+
+        #btnValindo {
+            background: #28a745; color: white; padding: 18px 60px; border: none; border-radius: 50px;
+            font-size: 1.5rem; font-weight: 900; cursor: pointer; box-shadow: 0 10px 20px rgba(40,167,69,0.3);
+        }
+
+        /* 6. RESPONSIVE RESULTS MATRIX */
+        .results-area { width: 100%; max-width: 500px; margin-top: 30px; }
+        .jogo-row {
+            background: rgba(255,255,255,0.07); padding: 12px; margin-bottom: 8px; border-radius: 8px;
+            font-family: monospace; line-height: 1.6; word-wrap: break-word;
+            border-left: 5px solid var(--gold-3d); display: block;
+        }
+        .jogo-row span { color: var(--gold-3d); font-weight: bold; margin-right: 5px; }
+
+        .footer-btns { display: flex; gap: 15px; margin: 20px 0; }
+        .btn-blue { background: #007bff; border: none; padding: 12px 25px; color: white; border-radius: 8px; font-weight: bold; }
+        .btn-red { background: #dc3545; border: none; padding: 12px 25px; color: white; border-radius: 8px; font-weight: bold; }
+
+        footer { font-size: 0.7rem; color: #888; text-align: center; padding: 20px; border-top: 1px solid #333; margin-top: 30px; }
+    </style>
+</head>
+<body>
+
+    <header><h1>TOTOLOTO</h1></header>
+
+    <div class="prob-box">
+        Probabilidades Atuais:<br>
+        <span id="probCount">3.268.760</span> combinações
+    </div>
+
+    <section class="selection-title">ESCOLHA DE 1 A 5 ÂNCORAS OBRIGATÓRIAS:</section>
+    <div class="ball-grid" id="gridInput"></div>
+
+    <section class="n3-section">
+        <p style="font-size: 0.8rem; text-align: center; margin-bottom: 10px;">ÚLTIMOS 3 RESULTADOS (N-3):</p>
+        <div class="n3-row"><div class="n3-inputs" id="nN"></div></div>
+        <div class="n3-row"><div class="n3-inputs" id="nN1"></div></div>
+        <div class="n3-row"><div class="n3-inputs" id="nN2"></div></div>
+    </section>
+
+    <div class="qty-box">
+        <select id="gameQty">
+            <option value="5">05 JOGOS</option>
+            <option value="10">10 JOGOS</option>
+            <option value="15">15 JOGOS</option>
+            <option value="20">20 JOGOS</option>
+            <option value="25" selected>25 JOGOS</option>
+        </select>
+    </div>
+
+    <div class="machine-stage">
+        <div class="tubes-container">
+            <div class="tube-glass"></div>
+            <div class="tube-glass"></div>
+        </div>
+        <div class="globo-sphere" id="globo"></div>
+        <div class="nozzle"></div>
+        <button id="btnValindo">VALINDO</button>
+    </div>
+
+    <section class="results-area" id="resultsMatrix"></section>
+
+    <div class="footer-btns">
+        <button class="btn-blue" id="btnCopy">COPIAR TODOS</button>
+        <button class="btn-red" onclick="location.reload()">LIMPAR</button>
+    </div>
+
+    <footer>
+        <strong>ISENÇÃO DE RESPONSABILIDADE:</strong> Este sistema é um simulador estatístico baseado em física. Não garantimos prêmios. Jogue com responsabilidade. Proibido para menores de 18 anos.
+    </footer>
+
+    <script>
+        // 1. Probability Calculation Logic (Lotofácil)
+        const combination = (n, k) => {
+            if (k > n) return 0;
+            let res = 1;
+            for (let i = 1; i <= k; i++) res = res * (n - i + 1) / i;
+            return Math.round(res);
+        };
+
+        const updateProb = (selectedCount) => {
+            const total = combination(25 - selectedCount, 15 - selectedCount);
+            document.getElementById('probCount').innerText = total.toLocaleString('pt-BR');
+        };
+
+        // 2. Generate Grid of 25 Balls (Selection Phase)
+        const grid = document.getElementById('gridInput');
+        let selectedAnchors = [];
+        for (let i = 1; i <= 25; i++) {
+            const b = document.createElement('div');
+            b.className = 'ball-3d';
+            b.innerText = i.toString().padStart(2, '0');
+            b.onclick = () => {
+                if (b.classList.contains('selected')) {
+                    b.classList.remove('selected');
+                    selectedAnchors = selectedAnchors.filter(n => n !== i);
+                } else if (selectedAnchors.length < 5) {
+                    ballEffect(b);
+                    b.classList.add('selected');
+                    selectedAnchors.push(i);
+                }
+                updateProb(selectedAnchors.length);
+            };
+            grid.appendChild(b);
+        }
+
+        const ballEffect = (el) => {
+            el.style.transform = "scale(0.9)";
+            setTimeout(() => el.style.transform = "scale(1.1)", 100);
+        };
+
+        // 3. Generate N-3 Historical Input Fields
+        const createN3 = (id) => {
+            const el = document.getElementById(id);
+            for(let i=0; i<15; i++) el.innerHTML += `<input type="text" class="n3-ball-input" maxlength="2">`;
+        };
+        ['nN', 'nN1', 'nN2'].forEach(createN3);
+
+        // 4. Kinetic Physics Engine (Globe Animation)
+        const globo = document.getElementById('globo');
+        const balls = [];
+        for (let i = 0; i < 25; i++) {
+            const ball = document.createElement('div');
+            ball.className = 'ball-kinetic';
+            globo.appendChild(ball);
+            balls.push({
+                el: ball, x: Math.random()*200, y: Math.random()*200,
+                vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15
+            });
+        }
+
+        const runPhysics = () => {
+            balls.forEach(b => {
+                b.x += b.vx; b.y += b.vy;
+                if (b.x < 0 || b.x > 240) b.vx *= -1;
+                if (b.y < 0 || b.y > 240) b.vy *= -1;
+                b.el.style.left = b.x + 'px'; b.el.style.top = b.y + 'px';
+            });
+        };
+        let anim = setInterval(runPhysics, 30); // Constant globe spinning
+
+        // 5. VALINDO Sequence (Processing and UI Ejection)
+        document.getElementById('btnValindo').onclick = async () => {
+            const btn = document.getElementById('btnValindo');
+            const matrix = document.getElementById('resultsMatrix');
+            const qty = document.getElementById('gameQty').value;
+            
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+            matrix.innerHTML = "";
+            
+            // Simulation of sequential ejection and matrix fill
+            for (let i = 1; i <= qty; i++) {
+                const row = document.createElement('div');
+                row.className = 'jogo-row';
+                row.id = `jogo-${i}`;
+                row.innerHTML = `<span>JOGO ${i.toString().padStart(2, '0')}:</span> `;
+                matrix.appendChild(row);
+
+                // Populate row with 15 unique numbers, prioritizing user anchors
+                let drawn = [...selectedAnchors];
+                while(drawn.length < 15) {
+                    let n = Math.floor(Math.random()*25)+1;
+                    if(!drawn.includes(n)) drawn.push(n);
+                }
+
+                // UI Display logic
+                drawn.sort((a,b) => a-b).forEach(n => {
+                    row.innerHTML += n.toString().padStart(2, '0') + " ";
+                });
+                
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                await new Promise(r => setTimeout(r, 400)); // Sequential ejection timing
+            }
+            btn.disabled = false;
+            btn.style.opacity = "1";
+        };
+
+        // 6. Output Management (Copy to Clipboard)
+        document.getElementById('btnCopy').onclick = () => {
+            const text = document.getElementById('resultsMatrix').innerText;
+            if (!text) return alert("Nenhum jogo gerado!");
+            navigator.clipboard.writeText(text);
+            alert("Todos os jogos foram copiados com sucesso!");
+        };
+    </script>
+</body>
+</html>
