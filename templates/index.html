@@ -12,187 +12,261 @@
             --glass: rgba(255, 255, 255, 0.1);
         }
 
+        /* Basic Reset and Layout */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
             background-color: var(--bg);
             color: white;
             font-family: 'Segoe UI', Arial, sans-serif;
-            display: flex; flex-direction: column; align-items: center;
-            padding: 10px; margin: 0; overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            margin: 0;
+            overflow-x: hidden;
         }
 
-        header h1 { font-size: 2.5rem; letter-spacing: 12px; margin: 10px 0; font-weight: 900; text-shadow: 0 0 20px #8a2be2; }
+        /* 1. LOGO AND PROBABILITIES */
+        header h1 { font-size: 2.5rem; letter-spacing: 12px; margin: 10px 0; font-weight: 900; }
+        .prob-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 1px solid #8a2be2;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #probCount { color: #00ffcc; font-weight: bold; font-family: monospace; font-size: 1.2rem; }
 
-        /* Smart N-3 Inputs */
-        .n3-section { width: 100%; max-width: 450px; background: var(--glass); padding: 15px; border-radius: 15px; margin-bottom: 20px; }
-        .n3-group { margin-bottom: 12px; }
-        .n3-group label { display: block; font-size: 0.75rem; color: #aaa; margin-bottom: 5px; }
-        .smart-input {
-            width: 100%; background: #2b004d; border: 1px solid #8a2be2;
-            color: #00ffcc; padding: 10px; border-radius: 8px;
-            font-family: monospace; text-align: center; font-size: 0.9rem;
+        /* 2. 3D SELECTION GRID */
+        .selection-title { font-size: 0.9rem; margin-bottom: 10px; color: #ccc; }
+        .ball-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 25px;
+            max-width: 350px;
         }
+        .ball-3d {
+            width: 50px; height: 50px; border-radius: 50%;
+            background: var(--purple-3d);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: white; cursor: pointer;
+            box-shadow: 4px 4px 8px rgba(0,0,0,0.6);
+            transition: 0.2s; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .ball-3d.selected { background: var(--gold-3d); color: #1a0033; transform: scale(1.1); box-shadow: 0 0 15px var(--gold-3d); }
 
-        /* 10 Pipes System */
-        .tubes-system {
-            display: grid; grid-template-columns: repeat(10, 1fr);
-            gap: 6px; width: 100%; max-width: 380px; margin-bottom: 20px;
-        }
-        .pipe {
-            height: 70px; background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 0 0 12px 12px; position: relative;
-        }
-        .ball-in-pipe {
-            width: 16px; height: 16px; border-radius: 50%;
-            background: var(--purple-3d); position: absolute;
-            bottom: 5px; left: 50%; transform: translateX(-50%);
-            transition: bottom 2s cubic-bezier(0.47, 0, 0.745, 0.715);
-        }
+        /* 3. HISTORICAL DATA (N-3) */
+        .n3-section { background: var(--glass); padding: 15px; border-radius: 15px; width: 100%; max-width: 400px; margin-bottom: 20px; }
+        .n3-row { margin-bottom: 10px; text-align: center; }
+        .n3-inputs { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+        .n3-ball-input { width: 28px; height: 28px; background: #2b004d; border: 1px solid #8a2be2; color: white; text-align: center; border-radius: 4px; font-size: 0.8rem; }
 
-        /* Globe and Machine */
-        .machine-stage { position: relative; text-align: center; }
+        /* 4. GAME QUANTITY SELECTOR */
+        .qty-box { margin-bottom: 25px; }
+        select { background: #4b0082; color: white; padding: 10px 20px; border-radius: 8px; border: 2px solid white; font-weight: bold; }
+
+        /* 5. MACHINE (TUBES + GLOBE) */
+        .machine-stage { width: 100%; max-width: 350px; text-align: center; position: relative; }
+        .tubes-container { display: flex; justify-content: space-around; margin-bottom: -10px; }
+        .tube-glass { width: 140px; height: 30px; background: var(--glass); border: 1px solid rgba(255,255,255,0.2); border-radius: 0 0 15px 15px; }
+        
         .globo-sphere {
-            width: 270px; height: 270px; border-radius: 50%;
-            border: 4px solid rgba(255,255,255,0.25);
-            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05), transparent);
-            position: relative; overflow: hidden;
-            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+            width: 260px; height: 260px; border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.2);
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1), transparent);
+            margin: 0 auto 20px; position: relative; overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
         }
-        .ball-kinetic {
-            position: absolute; width: 22px; height: 22px;
-            border-radius: 50%; background: var(--purple-3d);
-            opacity: 0; transition: opacity 0.3s;
-        }
+        .nozzle { width: 50px; height: 30px; background: #333; margin: -25px auto 20px; border-radius: 0 0 10px 10px; }
+
+        .ball-kinetic { position: absolute; width: 20px; height: 20px; background: var(--purple-3d); border-radius: 50%; }
 
         #btnValindo {
-            background: #28a745; color: white; padding: 18px 60px;
-            border: none; border-radius: 50px; font-size: 1.6rem;
-            font-weight: 900; cursor: pointer; margin-top: 25px;
-            box-shadow: 0 8px 25px rgba(40,167,69,0.4);
+            background: #28a745; color: white; padding: 18px 60px; border: none; border-radius: 50px;
+            font-size: 1.5rem; font-weight: 900; cursor: pointer; box-shadow: 0 10px 20px rgba(40,167,69,0.3);
         }
-        #btnValindo:disabled { background: #444; opacity: 0.6; cursor: not-allowed; }
 
-        /* 3D Result Row */
-        .results-matrix { width: 100%; max-width: 550px; margin-top: 35px; }
+        /* 6. RESPONSIVE RESULTS MATRIX */
+        .results-area { width: 100%; max-width: 500px; margin-top: 30px; }
         .jogo-row {
-            background: rgba(0,0,0,0.35); padding: 15px; border-radius: 12px;
-            margin-bottom: 12px; border-left: 5px solid var(--gold-3d);
-            display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+            background: rgba(255,255,255,0.07); padding: 12px; margin-bottom: 8px; border-radius: 8px;
+            font-family: monospace; line-height: 1.6; word-wrap: break-word;
+            border-left: 5px solid var(--gold-3d); display: block;
         }
-        .res-ball-3d {
-            width: 34px; height: 34px; border-radius: 50%;
-            background: var(--gold-3d); color: #1a0033;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 900; font-size: 0.95rem;
-            box-shadow: 2px 2px 6px rgba(0,0,0,0.6);
-            animation: eject-fx 0.5s ease-out;
-        }
-        @keyframes eject-fx { 0% { transform: scale(0) translateY(20px); } 100% { transform: scale(1) translateY(0); } }
+        .jogo-row span { color: var(--gold-3d); font-weight: bold; margin-right: 5px; }
 
-        /* Animations */
-        .fast-spin { animation: rotate-globe 0.25s linear infinite; }
-        .slow-spin { animation: rotate-globe 1.8s linear infinite; }
-        @keyframes rotate-globe { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .footer-btns { display: flex; gap: 15px; margin: 20px 0; }
+        .btn-blue { background: #007bff; border: none; padding: 12px 25px; color: white; border-radius: 8px; font-weight: bold; }
+        .btn-red { background: #dc3545; border: none; padding: 12px 25px; color: white; border-radius: 8px; font-weight: bold; }
+
+        footer { font-size: 0.7rem; color: #888; text-align: center; padding: 20px; border-top: 1px solid #333; margin-top: 30px; }
     </style>
 </head>
 <body>
 
     <header><h1>TOTOLOTO</h1></header>
 
-    <!-- Smart N-3 Text Inputs -->
+    <div class="prob-box">
+        Probabilidades Atuais:<br>
+        <span id="probCount">3.268.760</span> combinações
+    </div>
+
+    <section class="selection-title">ESCOLHA DE 1 A 5 ÂNCORAS OBRIGATÓRIAS:</section>
+    <div class="ball-grid" id="gridInput"></div>
+
     <section class="n3-section">
-        <div class="n3-group">
-            <label>Concurso N (Cole os 15 números):</label>
-            <input type="text" class="smart-input" id="nN" placeholder="Ex: 02 05 08 10...">
-        </div>
-        <div class="n3-group">
-            <label>Concurso N-1:</label>
-            <input type="text" class="smart-input" id="nN1">
-        </div>
-        <div class="n3-group">
-            <label>Concurso N-2:</label>
-            <input type="text" class="smart-input" id="nN2">
-        </div>
+        <p style="font-size: 0.8rem; text-align: center; margin-bottom: 10px;">ÚLTIMOS 3 RESULTADOS (N-3):</p>
+        <div class="n3-row"><div class="n3-inputs" id="nN"></div></div>
+        <div class="n3-row"><div class="n3-inputs" id="nN1"></div></div>
+        <div class="n3-row"><div class="n3-inputs" id="nN2"></div></div>
     </section>
 
-    <!-- 10 Pipes -->
-    <div class="tubes-system" id="pipesArea"></div>
+    <div class="qty-box">
+        <select id="gameQty">
+            <option value="5">05 JOGOS</option>
+            <option value="10">10 JOGOS</option>
+            <option value="15">15 JOGOS</option>
+            <option value="20">20 JOGOS</option>
+            <option value="25" selected>25 JOGOS</option>
+        </select>
+    </div>
 
-    <!-- Machine Stage -->
     <div class="machine-stage">
-        <div class="globo-sphere" id="globoMain"></div>
+        <div class="tubes-container">
+            <div class="tube-glass"></div>
+            <div class="tube-glass"></div>
+        </div>
+        <div class="globo-sphere" id="globo"></div>
+        <div class="nozzle"></div>
         <button id="btnValindo">VALINDO</button>
     </div>
 
-    <!-- Results Matrix -->
-    <div class="results-matrix" id="matrix"></div>
+    <section class="results-area" id="resultsMatrix"></section>
+
+    <div class="footer-btns">
+        <button class="btn-blue" id="btnCopy">COPIAR TODOS</button>
+        <button class="btn-red" onclick="location.reload()">LIMPAR</button>
+    </div>
+
+    <footer>
+        <strong>ISENÇÃO DE RESPONSABILIDADE:</strong> Este sistema é um simulador estatístico baseado em física. Não garantimos prêmios. Jogue com responsabilidade. Proibido para menores de 18 anos.
+    </footer>
 
     <script>
-        // Setup 10 pipes and balls
-        const pipesArea = document.getElementById('pipesArea');
-        for(let i=0; i<10; i++) {
-            pipesArea.innerHTML += `<div class="pipe"><div class="ball-in-pipe" id="pb-${i}"></div></div>`;
-        }
+        // 1. Probability Calculation Logic (Lotofácil)
+        const combination = (n, k) => {
+            if (k > n) return 0;
+            let res = 1;
+            for (let i = 1; i <= k; i++) res = res * (n - i + 1) / i;
+            return Math.round(res);
+        };
 
-        // Setup 25 kinetic balls in globe
-        const globo = document.getElementById('globoMain');
-        const kineticBalls = [];
-        for(let i=0; i<25; i++) {
+        const updateProb = (selectedCount) => {
+            const total = combination(25 - selectedCount, 15 - selectedCount);
+            document.getElementById('probCount').innerText = total.toLocaleString('pt-BR');
+        };
+
+        // 2. Generate Grid of 25 Balls (Selection Phase)
+        const grid = document.getElementById('gridInput');
+        let selectedAnchors = [];
+        for (let i = 1; i <= 25; i++) {
             const b = document.createElement('div');
-            b.className = 'ball-kinetic';
-            b.style.left = Math.random()*240 + 'px';
-            b.style.top = Math.random()*240 + 'px';
-            globo.appendChild(b);
-            kineticBalls.push(b);
+            b.className = 'ball-3d';
+            b.innerText = i.toString().padStart(2, '0');
+            b.onclick = () => {
+                if (b.classList.contains('selected')) {
+                    b.classList.remove('selected');
+                    selectedAnchors = selectedAnchors.filter(n => n !== i);
+                } else if (selectedAnchors.length < 5) {
+                    ballEffect(b);
+                    b.classList.add('selected');
+                    selectedAnchors.push(i);
+                }
+                updateProb(selectedAnchors.length);
+            };
+            grid.appendChild(b);
         }
 
+        const ballEffect = (el) => {
+            el.style.transform = "scale(0.9)";
+            setTimeout(() => el.style.transform = "scale(1.1)", 100);
+        };
+
+        // 3. Generate N-3 Historical Input Fields
+        const createN3 = (id) => {
+            const el = document.getElementById(id);
+            for(let i=0; i<15; i++) el.innerHTML += `<input type="text" class="n3-ball-input" maxlength="2">`;
+        };
+        ['nN', 'nN1', 'nN2'].forEach(createN3);
+
+        // 4. Kinetic Physics Engine (Globe Animation)
+        const globo = document.getElementById('globo');
+        const balls = [];
+        for (let i = 0; i < 25; i++) {
+            const ball = document.createElement('div');
+            ball.className = 'ball-kinetic';
+            globo.appendChild(ball);
+            balls.push({
+                el: ball, x: Math.random()*200, y: Math.random()*200,
+                vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15
+            });
+        }
+
+        const runPhysics = () => {
+            balls.forEach(b => {
+                b.x += b.vx; b.y += b.vy;
+                if (b.x < 0 || b.x > 240) b.vx *= -1;
+                if (b.y < 0 || b.y > 240) b.vy *= -1;
+                b.el.style.left = b.x + 'px'; b.el.style.top = b.y + 'px';
+            });
+        };
+        let anim = setInterval(runPhysics, 30); // Constant globe spinning
+
+        // 5. VALINDO Sequence (Processing and UI Ejection)
         document.getElementById('btnValindo').onclick = async () => {
             const btn = document.getElementById('btnValindo');
-            const matrix = document.getElementById('matrix');
+            const matrix = document.getElementById('resultsMatrix');
+            const qty = document.getElementById('gameQty').value;
+            
             btn.disabled = true;
+            btn.style.opacity = "0.5";
+            matrix.innerHTML = "";
+            
+            // Simulation of sequential ejection and matrix fill
+            for (let i = 1; i <= qty; i++) {
+                const row = document.createElement('div');
+                row.className = 'jogo-row';
+                row.id = `jogo-${i}`;
+                row.innerHTML = `<span>JOGO ${i.toString().padStart(2, '0')}:</span> `;
+                matrix.appendChild(row);
 
-            // 1. DROP SEQUENCE (2 SECONDS)
-            document.querySelectorAll('.ball-in-pipe').forEach(b => b.style.bottom = "-50px");
-            setTimeout(() => {
-                kineticBalls.forEach(b => b.style.opacity = "1");
-            }, 1000);
-            await new Promise(r => setTimeout(r, 2000));
+                // Populate row with 15 unique numbers, prioritizing user anchors
+                let drawn = [...selectedAnchors];
+                while(drawn.length < 15) {
+                    let n = Math.floor(Math.random()*25)+1;
+                    if(!drawn.includes(n)) drawn.push(n);
+                }
 
-            // Generate 15 UNIQUE numbers for this draw
-            let drawResult = []; 
-            while(drawResult.length < 15) {
-                let n = Math.floor(Math.random()*25)+1;
-                if(!drawResult.includes(n)) drawResult.push(n);
-            }
-            drawResult.sort((a,b) => a-b);
-
-            const row = document.createElement('div');
-            row.className = 'jogo-row';
-            row.innerHTML = `<span style="width:100%; font-size:0.7rem; color:#666;">SORTEIO EM CURSO...</span>`;
-            matrix.prepend(row);
-
-            // 2. THE 15 BALL CYCLE (9s EACH)
-            for(let i=0; i<15; i++) {
-                // Fast Spin (4.5s)
-                globo.className = "globo-sphere fast-spin";
-                await new Promise(r => setTimeout(r, 4500));
-
-                // Slow Spin (4.5s)
-                globo.className = "globo-sphere slow-spin";
-                await new Promise(r => setTimeout(r, 4500));
-
-                // Eject 3D Ball
-                const ball3d = document.createElement('div');
-                ball3d.className = 'res-ball-3d';
-                ball3d.innerText = drawResult[i].toString().padStart(2, '0');
-                row.appendChild(ball3d);
+                // UI Display logic
+                drawn.sort((a,b) => a-b).forEach(n => {
+                    row.innerHTML += n.toString().padStart(2, '0') + " ";
+                });
                 
-                // Kinetic feedback
-                kineticBalls[i].style.background = 'var(--gold-3d)';
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                await new Promise(r => setTimeout(r, 400)); // Sequential ejection timing
             }
-
-            globo.className = "globo-sphere";
             btn.disabled = false;
+            btn.style.opacity = "1";
+        };
+
+        // 6. Output Management (Copy to Clipboard)
+        document.getElementById('btnCopy').onclick = () => {
+            const text = document.getElementById('resultsMatrix').innerText;
+            if (!text) return alert("Nenhum jogo gerado!");
+            navigator.clipboard.writeText(text);
+            alert("Todos os jogos foram copiados com sucesso!");
         };
     </script>
 </body>
