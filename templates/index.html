@@ -20,154 +20,178 @@
             padding: 10px; margin: 0; overflow-x: hidden;
         }
 
-        /* 1. 10 PIPES AT TOP */
-        .tubes-system {
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 5px; width: 100%; max-width: 400px;
-            margin-bottom: 20px;
-        }
-        .pipe {
-            height: 80px; background: var(--glass);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 0 0 10px 10px; position: relative;
-        }
-        .ball-in-pipe {
-            width: 15px; height: 15px; border-radius: 50%;
-            background: var(--purple-3d); position: absolute;
-            bottom: 5px; left: 50%; transform: translateX(-50%);
+        header h1 { font-size: 2.5rem; letter-spacing: 12px; margin: 10px 0; font-weight: 900; text-shadow: 0 0 20px #8a2be2; }
+
+        /* Smart N-3 Inputs */
+        .n3-section { width: 100%; max-width: 450px; background: var(--glass); padding: 15px; border-radius: 15px; margin-bottom: 20px; }
+        .n3-group { margin-bottom: 12px; }
+        .n3-group label { display: block; font-size: 0.75rem; color: #aaa; margin-bottom: 5px; }
+        .smart-input {
+            width: 100%; background: #2b004d; border: 1px solid #8a2be2;
+            color: #00ffcc; padding: 10px; border-radius: 8px;
+            font-family: monospace; text-align: center; font-size: 0.9rem;
         }
 
-        /* 2. THE GLOBO */
-        .globo-container { position: relative; margin: 30px 0; }
+        /* 10 Pipes System */
+        .tubes-system {
+            display: grid; grid-template-columns: repeat(10, 1fr);
+            gap: 6px; width: 100%; max-width: 380px; margin-bottom: 20px;
+        }
+        .pipe {
+            height: 70px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 0 0 12px 12px; position: relative;
+        }
+        .ball-in-pipe {
+            width: 16px; height: 16px; border-radius: 50%;
+            background: var(--purple-3d); position: absolute;
+            bottom: 5px; left: 50%; transform: translateX(-50%);
+            transition: bottom 2s cubic-bezier(0.47, 0, 0.745, 0.715);
+        }
+
+        /* Globe and Machine */
+        .machine-stage { position: relative; text-align: center; }
         .globo-sphere {
-            width: 280px; height: 280px; border-radius: 50%;
-            border: 4px solid rgba(255,255,255,0.3);
+            width: 270px; height: 270px; border-radius: 50%;
+            border: 4px solid rgba(255,255,255,0.25);
             background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05), transparent);
             position: relative; overflow: hidden;
-            box-shadow: inset 0 0 60px rgba(0,0,0,0.9);
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
         }
         .ball-kinetic {
             position: absolute; width: 22px; height: 22px;
             border-radius: 50%; background: var(--purple-3d);
-            transition: all 0.5s ease;
+            opacity: 0; transition: opacity 0.3s;
         }
 
-        /* 3. CONTROLS */
         #btnValindo {
-            background: #28a745; color: white; padding: 20px 70px;
-            border: none; border-radius: 50px; font-size: 1.8rem;
-            font-weight: 900; cursor: pointer; box-shadow: 0 10px 30px rgba(40,167,69,0.5);
+            background: #28a745; color: white; padding: 18px 60px;
+            border: none; border-radius: 50px; font-size: 1.6rem;
+            font-weight: 900; cursor: pointer; margin-top: 25px;
+            box-shadow: 0 8px 25px rgba(40,167,69,0.4);
         }
-        #btnValindo:disabled { background: #444; cursor: not-allowed; }
+        #btnValindo:disabled { background: #444; opacity: 0.6; cursor: not-allowed; }
 
-        /* 4. RESULTS (3D BALLS) */
-        .results-matrix { width: 100%; max-width: 600px; margin-top: 40px; }
+        /* 3D Result Row */
+        .results-matrix { width: 100%; max-width: 550px; margin-top: 35px; }
         .jogo-row {
-            background: rgba(0,0,0,0.4); padding: 15px;
-            margin-bottom: 15px; border-radius: 12px;
-            display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-            border-left: 6px solid var(--gold-3d);
+            background: rgba(0,0,0,0.35); padding: 15px; border-radius: 12px;
+            margin-bottom: 12px; border-left: 5px solid var(--gold-3d);
+            display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
         }
-        .res-ball {
-            width: 32px; height: 32px; border-radius: 50%;
+        .res-ball-3d {
+            width: 34px; height: 34px; border-radius: 50%;
             background: var(--gold-3d); color: #1a0033;
             display: flex; align-items: center; justify-content: center;
-            font-weight: bold; font-size: 0.9rem;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
-            animation: eject-anim 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-weight: 900; font-size: 0.95rem;
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.6);
+            animation: eject-fx 0.5s ease-out;
         }
-        @keyframes eject-anim { 0% { transform: scale(0) rotate(-180deg); } 100% { transform: scale(1) rotate(0); } }
+        @keyframes eject-fx { 0% { transform: scale(0) translateY(20px); } 100% { transform: scale(1) translateY(0); } }
 
         /* Animations */
-        .spin-fast { animation: rotating 0.2s linear infinite; }
-        .spin-slow { animation: rotating 1.5s linear infinite; }
-        @keyframes rotating { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .fast-spin { animation: rotate-globe 0.25s linear infinite; }
+        .slow-spin { animation: rotate-globe 1.8s linear infinite; }
+        @keyframes rotate-globe { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <header><h1>TOTOLOTO</h1></header>
 
-    <div class="tubes-system" id="pipes"></div>
-
-    <div class="globo-container">
-        <div class="globo-sphere" id="globo"></div>
-        <div style="margin-top: 20px; text-align: center;">
-            <button id="btnValindo">VALINDO</button>
+    <!-- Smart N-3 Text Inputs -->
+    <section class="n3-section">
+        <div class="n3-group">
+            <label>Concurso N (Cole os 15 números):</label>
+            <input type="text" class="smart-input" id="nN" placeholder="Ex: 02 05 08 10...">
         </div>
+        <div class="n3-group">
+            <label>Concurso N-1:</label>
+            <input type="text" class="smart-input" id="nN1">
+        </div>
+        <div class="n3-group">
+            <label>Concurso N-2:</label>
+            <input type="text" class="smart-input" id="nN2">
+        </div>
+    </section>
+
+    <!-- 10 Pipes -->
+    <div class="tubes-system" id="pipesArea"></div>
+
+    <!-- Machine Stage -->
+    <div class="machine-stage">
+        <div class="globo-sphere" id="globoMain"></div>
+        <button id="btnValindo">VALINDO</button>
     </div>
 
+    <!-- Results Matrix -->
     <div class="results-matrix" id="matrix"></div>
 
     <script>
-        // 1. Initialize 10 Pipes with balls
-        const pipesDiv = document.getElementById('pipes');
+        // Setup 10 pipes and balls
+        const pipesArea = document.getElementById('pipesArea');
         for(let i=0; i<10; i++) {
-            pipesDiv.innerHTML += `<div class="pipe"><div class="ball-in-pipe" id="p-ball-${i}"></div></div>`;
+            pipesArea.innerHTML += `<div class="pipe"><div class="ball-in-pipe" id="pb-${i}"></div></div>`;
         }
 
-        // 2. Initialize Globo with 25 kinetic balls
-        const globo = document.getElementById('globo');
-        const balls = [];
+        // Setup 25 kinetic balls in globe
+        const globo = document.getElementById('globoMain');
+        const kineticBalls = [];
         for(let i=0; i<25; i++) {
             const b = document.createElement('div');
             b.className = 'ball-kinetic';
-            // Start balls outside (simulating being high up)
-            b.style.top = '-50px';
-            b.style.left = Math.random()*250 + 'px';
+            b.style.left = Math.random()*240 + 'px';
+            b.style.top = Math.random()*240 + 'px';
             globo.appendChild(b);
-            balls.push({ el: b, x: Math.random()*250, y: -50, vx: 0, vy: 0 });
+            kineticBalls.push(b);
         }
 
-        // 3. THE MASTER SEQUENCE
         document.getElementById('btnValindo').onclick = async () => {
             const btn = document.getElementById('btnValindo');
             const matrix = document.getElementById('matrix');
             btn.disabled = true;
 
-            // --- STEP 1: THE DROP (2 SECONDS) ---
-            // Hide balls in pipes and drop balls in globo
-            document.querySelectorAll('.ball-in-pipe').forEach(b => b.style.display = 'none');
-            balls.forEach(b => {
-                b.y = 150 + Math.random()*100;
-                b.vx = (Math.random()-0.5)*20;
-                b.vy = (Math.random()-0.5)*20;
-                b.el.style.top = b.y + 'px';
-            });
+            // 1. DROP SEQUENCE (2 SECONDS)
+            document.querySelectorAll('.ball-in-pipe').forEach(b => b.style.bottom = "-50px");
+            setTimeout(() => {
+                kineticBalls.forEach(b => b.style.opacity = "1");
+            }, 1000);
             await new Promise(r => setTimeout(r, 2000));
 
-            // Create a new result row
+            // Generate 15 UNIQUE numbers for this draw
+            let drawResult = []; 
+            while(drawResult.length < 15) {
+                let n = Math.floor(Math.random()*25)+1;
+                if(!drawResult.includes(n)) drawResult.push(n);
+            }
+            drawResult.sort((a,b) => a-b);
+
             const row = document.createElement('div');
             row.className = 'jogo-row';
-            row.innerHTML = `<span style="width:100%; font-weight:bold; color:#888; margin-bottom:10px;">SORTEIO EM CURSO...</span>`;
+            row.innerHTML = `<span style="width:100%; font-size:0.7rem; color:#666;">SORTEIO EM CURSO...</span>`;
             matrix.prepend(row);
 
-            // --- STEP 2: THE 15 BALL REPETITION ---
-            // Timing: 4.5s Fast + 4.5s Slow = 9s per ball
-            for(let i=1; i<=15; i++) {
-                // A. FAST MIXING (4.5s)
-                globo.className = 'globo-sphere spin-fast';
+            // 2. THE 15 BALL CYCLE (9s EACH)
+            for(let i=0; i<15; i++) {
+                // Fast Spin (4.5s)
+                globo.className = "globo-sphere fast-spin";
                 await new Promise(r => setTimeout(r, 4500));
 
-                // B. SLOW DOWN (4.5s)
-                globo.className = 'globo-sphere spin-slow';
+                // Slow Spin (4.5s)
+                globo.className = "globo-sphere slow-spin";
                 await new Promise(r => setTimeout(r, 4500));
 
-                // C. EJECT BALL (3D Sphere)
-                const num = Math.floor(Math.random()*25)+1; // In real use, fetch from Python API
-                const resBall = document.createElement('div');
-                resBall.className = 'res-ball';
-                resBall.innerText = num.toString().padStart(2, '0');
-                row.appendChild(resBall);
+                // Eject 3D Ball
+                const ball3d = document.createElement('div');
+                ball3d.className = 'res-ball-3d';
+                ball3d.innerText = drawResult[i].toString().padStart(2, '0');
+                row.appendChild(ball3d);
                 
-                // Visual feedback in globo
-                const kinetic = balls[i % 25];
-                kinetic.el.style.background = 'var(--gold-3d)';
-                setTimeout(() => kinetic.el.style.background = 'var(--purple-3d)', 1000);
+                // Kinetic feedback
+                kineticBalls[i].style.background = 'var(--gold-3d)';
             }
 
-            globo.className = 'globo-sphere'; // Stop
+            globo.className = "globo-sphere";
             btn.disabled = false;
         };
     </script>
